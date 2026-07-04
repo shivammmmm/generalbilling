@@ -1,7 +1,14 @@
-import { FileText, MapPin, Phone } from "lucide-react";
+import { FileCheck, FileText, MapPin, Phone } from "lucide-react";
 import { calculateLine, formatCurrency } from "../../utils/billing";
 
-const InvoicePreview = ({ formData, customers, productsList, summary }) => {
+const InvoicePreview = ({
+  formData,
+  customers,
+  productsList,
+  summary,
+  documentType = "gst_invoice",
+  gstEnabled = true,
+}) => {
   const selectedCustomer = customers.find(
     (customer) => customer._id === formData.farmerId
   );
@@ -13,17 +20,25 @@ const InvoicePreview = ({ formData, customers, productsList, summary }) => {
       })
     : new Date().toLocaleDateString("en-IN");
 
+  const isGst = documentType === "gst_invoice";
+
   return (
     <div className="sticky top-8 rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-              <FileText size={22} />
+            <div
+              className={`mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl ${
+                isGst ? "bg-blue-50 text-blue-600" : "bg-orange-50 text-orange-600"
+              }`}
+            >
+              {isGst ? <FileCheck size={22} /> : <FileText size={22} />}
             </div>
-            <h2 className="text-2xl font-black text-slate-950">FlexBill</h2>
-            <p className="mt-1 text-xs font-bold uppercase tracking-widest text-slate-500">
-              Invoice Preview
+            <h2 className="text-2xl font-black text-slate-950">Cloudify</h2>
+            <p className={`mt-1 text-xs font-bold uppercase tracking-widest ${
+              isGst ? "text-blue-600" : "text-orange-600"
+            }`}>
+              {isGst ? "GST Invoice Preview" : "Order Preview (Kaccha Bill)"}
             </p>
           </div>
           <div className="text-right">
@@ -31,7 +46,9 @@ const InvoicePreview = ({ formData, customers, productsList, summary }) => {
               Date
             </p>
             <p className="mt-1 text-sm font-bold text-slate-900">{invoiceDate}</p>
-            <p className="mt-3 text-xs font-black uppercase tracking-widest text-blue-600">
+            <p className={`mt-3 text-xs font-black uppercase tracking-widest ${
+              isGst ? "text-blue-600" : "text-orange-600"
+            }`}>
               {formData.rateType}
             </p>
           </div>
@@ -64,7 +81,7 @@ const InvoicePreview = ({ formData, customers, productsList, summary }) => {
 
         <section className="overflow-hidden rounded-2xl border border-slate-200">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-left">
+            <table className="w-full min-w-[520px] text-left">
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">
@@ -82,6 +99,11 @@ const InvoicePreview = ({ formData, customers, productsList, summary }) => {
                   <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">
                     Qty
                   </th>
+                  {isGst && (
+                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      GST
+                    </th>
+                  )}
                   <th className="px-4 py-3 text-right text-[10px] font-black uppercase tracking-widest text-slate-500">
                     Amount
                   </th>
@@ -92,7 +114,7 @@ const InvoicePreview = ({ formData, customers, productsList, summary }) => {
                 0 ? (
                   <tr>
                     <td
-                      colSpan="6"
+                      colSpan={isGst ? "7" : "6"}
                       className="px-4 py-10 text-center text-sm font-semibold text-slate-400"
                     >
                       No items added yet.
@@ -109,7 +131,8 @@ const InvoicePreview = ({ formData, customers, productsList, summary }) => {
                     const line = calculateLine(
                       item,
                       product,
-                      formData.rateType
+                      formData.rateType,
+                      gstEnabled
                     );
 
                     return (
@@ -129,6 +152,11 @@ const InvoicePreview = ({ formData, customers, productsList, summary }) => {
                         <td className="px-4 py-4 text-sm font-semibold text-slate-600">
                           {line.quantity}
                         </td>
+                        {isGst && (
+                          <td className="px-4 py-4 text-sm font-semibold text-slate-600">
+                            {line.gstRate}%
+                          </td>
+                        )}
                         <td className="px-4 py-4 text-right text-sm font-black text-slate-950">
                           {formatCurrency(line.baseAmount)}
                         </td>
@@ -146,13 +174,15 @@ const InvoicePreview = ({ formData, customers, productsList, summary }) => {
             <span>Subtotal</span>
             <span>{formatCurrency(summary.subTotal)}</span>
           </div>
-          <div className="flex items-center justify-between text-sm font-bold text-slate-600">
-            <span>GST Total</span>
-            <span>{formatCurrency(summary.totalGST)}</span>
-          </div>
+          {isGst && (
+            <div className="flex items-center justify-between text-sm font-bold text-slate-600">
+              <span>GST Total</span>
+              <span>{formatCurrency(summary.totalGST)}</span>
+            </div>
+          )}
           <div className="border-t border-slate-200 pt-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-black uppercase tracking-widest text-blue-600">
+              <span className={`text-sm font-black uppercase tracking-widest ${isGst ? "text-blue-600" : "text-orange-600"}`}>
                 Grand Total
               </span>
               <span className="text-2xl font-black text-slate-950">

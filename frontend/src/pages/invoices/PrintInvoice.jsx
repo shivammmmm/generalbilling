@@ -1,22 +1,87 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useReactToPrint } from "react-to-print";
 import { ArrowLeft, Printer, Download, MessageCircle } from "lucide-react";
 import API from "../../services/api";
 import { formatCurrency, toNumber } from "../../utils/billing";
+
+// A4 Print CSS injected into document head
+const A4_PRINT_STYLE = `
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm 10mm 12mm;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print\\:hidden { display: none !important; }
+
+  #invoice-a4-wrapper {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    background: white;
+    font-size: 10pt;
+  }
+
+  #invoice-a4-wrapper table {
+    font-size: 8.5pt;
+  }
+
+  #invoice-a4-wrapper th,
+  #invoice-a4-wrapper td {
+    padding: 4px 5px !important;
+  }
+
+  #invoice-a4-wrapper tr {
+    page-break-inside: avoid;
+  }
+
+  #invoice-a4-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-top: 1px solid #e2e8f0;
+    padding: 4mm 0 0 0;
+    text-align: center;
+    font-size: 8pt;
+    color: #64748b;
+    background: white;
+  }
+}
+`;
 
 const PrintInvoice = () => {
   const { id } = useParams();
   const printRef = useRef(null);
   const [invoice, setInvoice] = useState(null);
+  const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Inject A4 print styles once
+  useEffect(() => {
+    const styleTag = document.createElement("style");
+    styleTag.id = "a4-print-css";
+    styleTag.textContent = A4_PRINT_STYLE;
+    document.head.appendChild(styleTag);
+    return () => {
+      const existing = document.getElementById("a4-print-css");
+      if (existing) existing.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const getInvoice = async () => {
       try {
         const { data } = await API.get(`/invoices/print/${id}`);
         setInvoice(data.printableInvoice);
+        setSettings(data.settings || {});
       } catch (err) {
         setError(err.response?.data?.message || "Invoice not found");
       } finally {
@@ -27,26 +92,49 @@ const PrintInvoice = () => {
     getInvoice();
   }, [id]);
 
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: invoice?.invoiceNumber || "Invoice",
-  });
-
-  // ✅ PDF Download — browser print dialog mein "Save as PDF" select karo
-  const handleDownloadPDF = () => {
-    const originalTitle = document.title;
-    document.title = `Invoice-${invoice?.invoiceNumber || "download"}`;
+  // ── Print via browser dialog ──
+  const handlePrint = () => {
     window.print();
-    document.title = originalTitle;
   };
 
-  // ✅ WhatsApp Send (Free — wa.me link)
-  const handleWhatsApp = () => {
+  // ── PDF Download using html2pdf.js ──
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById("invoice-a4-wrapper");
+    if (!element) return;
+
+    const html2pdf = (await import("html2pdf.js")).default;
+
+    const isGst = invoice?.documentType !== "order" && invoice?.gstEnabled !== false;
+    const docLabel = isGst ? "GST-Invoice" : "Order";
+    const filename = `${docLabel}-${invoice?.invoiceNumber || "bill"}.pdf`;
+
+    const opt = {
+      margin: [10, 12, 10, 12],
+      filename,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["avoid-all", "css"] },
+    };
+
+    await html2pdf().set(opt).from(element).save();
+  };
+
+  // ── WhatsApp: Download PDF → open WhatsApp with message ──
+  const handleWhatsApp = async () => {
     const phone = invoice?.farmer?.mobileNumber?.replace(/\D/g, "");
     if (!phone) {
       alert("Customer ka mobile number nahi mila.");
       return;
     }
+
+    // 1. Download PDF first
+    await handleDownloadPDF();
+
+    // 2. Build message
+    const isGst = invoice?.documentType !== "order" && invoice?.gstEnabled !== false;
+    const docLabel = isGst ? "Invoice" : "Order";
+    const filename = `${isGst ? "GST-Invoice" : "Order"}-${invoice?.invoiceNumber || "bill"}.pdf`;
 
     const date = new Date(invoice?.createdAt).toLocaleDateString("en-IN", {
       day: "2-digit",
@@ -54,21 +142,21 @@ const PrintInvoice = () => {
       year: "numeric",
     });
 
-    const gstEnabled = invoice?.gstEnabled !== false;
-
     const productLines = invoice?.products
       ?.map((item) => {
         const sqFt = item.sqFt ?? toNumber(item.length) * toNumber(item.width);
-        const baseAmount = item.baseAmount ?? sqFt * toNumber(item.selectedRate) * toNumber(item.quantity, 1);
+        const baseAmount =
+          item.baseAmount ?? sqFt * toNumber(item.selectedRate) * toNumber(item.quantity, 1);
         return `• ${item?.product?.productName} - ${sqFt} sqft @ ₹${item.selectedRate} = ₹${Math.round(baseAmount).toLocaleString("en-IN")}`;
       })
       .join("\n");
 
-    const gstLine = gstEnabled
-      ? `🏷️ GST: ₹${Math.round(toNumber(invoice?.totalGST)).toLocaleString("en-IN")}\n`
-      : "";
+    const gstLine =
+      isGst
+        ? `🏷️ GST: ₹${Math.round(toNumber(invoice?.totalGST)).toLocaleString("en-IN")}\n`
+        : "";
 
-    const message = `🧾 *Invoice #${invoice?.invoiceNumber}*
+    const message = `🧾 *${docLabel} #${invoice?.invoiceNumber}*
 📅 Date: ${date}
 👤 Customer: ${invoice?.farmer?.name}
 📍 Area: ${invoice?.farmer?.village}
@@ -79,10 +167,12 @@ ${productLines}
 💰 Subtotal: ₹${Math.round(toNumber(invoice?.subTotal)).toLocaleString("en-IN")}
 ${gstLine}✅ *Grand Total: ₹${Math.round(toNumber(invoice?.grandTotal)).toLocaleString("en-IN")}*
 
-Payment Status: ${invoice?.paymentStatus?.toUpperCase()}
+📎 PDF "${filename}" download ho gaya hai.
+WhatsApp mein attach karke bhejo!
 
 _Thank you for your business! 🌾_`;
 
+    // 3. Open WhatsApp Web
     const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank");
   };
@@ -103,12 +193,22 @@ _Thank you for your business! 🌾_`;
     );
   }
 
-  const gstEnabled = invoice?.gstEnabled !== false;
+  const isGst = invoice?.documentType !== "order" && invoice?.gstEnabled !== false;
+  const docLabel = isGst ? "Invoice" : "Order";
+  const shopName = settings?.shopName || "FlexBill";
+  const shopAddress = settings?.shopAddress || "";
+  const shopMobile = settings?.shopMobile || "";
+  const gstNumber = settings?.gstNumber || "";
+
+  // GST breakup: CGST + SGST (50/50 split)
+  const totalGST = toNumber(invoice?.totalGST);
+  const cgst = totalGST / 2;
+  const sgst = totalGST / 2;
 
   return (
     <div className="space-y-6 bg-slate-100 p-4 sm:p-6">
-      {/* Action Buttons — print mein hidden */}
-      <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
+      {/* ── Action Buttons (hidden on print) ── */}
+      <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
         <Link
           to="/invoices"
           className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:text-blue-600"
@@ -118,181 +218,198 @@ _Thank you for your business! 🌾_`;
         </Link>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* WhatsApp Button */}
+          {/* WhatsApp */}
           <button
             onClick={handleWhatsApp}
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-500 px-5 py-3 font-black text-white shadow-lg shadow-green-200 hover:bg-green-600"
           >
             <MessageCircle size={18} />
-            Send on WhatsApp
+            Send to WhatsApp
           </button>
 
-          {/* PDF Download Button */}
+          {/* PDF Download */}
           <button
             onClick={handleDownloadPDF}
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-800 px-5 py-3 font-black text-white shadow-lg hover:bg-slate-900"
           >
             <Download size={18} />
-            Save PDF
+            Save PDF (A4)
           </button>
 
-          {/* Print Button */}
+          {/* Print */}
           <button
             onClick={handlePrint}
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
           >
             <Printer size={18} />
-            Print Invoice
+            Print {docLabel}
           </button>
         </div>
       </div>
 
-      {/* Invoice Content */}
+      {/* ── A4 Invoice Content ── */}
       <div
+        id="invoice-a4-wrapper"
         ref={printRef}
-        className="mx-auto min-h-[1120px] w-full max-w-5xl bg-white p-8 text-slate-900 shadow-lg sm:p-10 print:min-h-0 print:max-w-none print:shadow-none"
+        style={{ fontFamily: "'Segoe UI', Arial, sans-serif" }}
+        className="mx-auto w-full max-w-[210mm] bg-white px-8 py-7 text-slate-900 shadow-lg print:max-w-none print:shadow-none print:px-0 print:py-0"
       >
-        <header className="flex flex-col gap-6 border-b-2 border-slate-900 pb-8 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-950">
-              AgroShop
-            </h1>
-            <p className="mt-2 max-w-sm text-sm font-semibold leading-6 text-slate-600">
-              Agriculture Management System
-            </p>
-            <p className="mt-4 text-sm font-semibold text-slate-700">
-              Your Business Address
-            </p>
-            <p className="text-sm font-semibold text-slate-700">
-              Phone: +91 98765 43210
-            </p>
-          </div>
 
-          <div className="text-left sm:text-right">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
-              Invoice
-            </p>
-            <h2 className="mt-2 text-2xl font-black text-slate-950">
-              #{invoice?.invoiceNumber}
-            </h2>
-            <p className="mt-3 text-sm font-semibold text-slate-700">
-              Date:{" "}
-              {new Date(invoice?.createdAt).toLocaleDateString("en-IN", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-              })}
-            </p>
-            <p className="text-sm font-semibold text-slate-700">
-              Rate Type: {invoice?.rateType || "Rate A"}
-            </p>
-            {!gstEnabled && (
-              <span className="mt-2 inline-block rounded-full bg-orange-100 px-3 py-1 text-xs font-black text-orange-700">
-                GST Excluded
-              </span>
-            )}
+        {/* ── HEADER ── */}
+        <header style={{ borderBottom: "2.5px solid #1e293b", paddingBottom: "10px", marginBottom: "12px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            {/* Left: Shop Info */}
+            <div>
+              <h1 style={{ fontSize: "20px", fontWeight: 900, color: "#0f172a", margin: 0 }}>
+                {shopName}
+              </h1>
+              {shopAddress && (
+                <p style={{ fontSize: "9px", color: "#475569", margin: "2px 0 0 0" }}>
+                  {shopAddress}
+                </p>
+              )}
+              {shopMobile && (
+                <p style={{ fontSize: "9px", color: "#475569", margin: "1px 0 0 0" }}>
+                  Phone: {shopMobile}
+                </p>
+              )}
+              {isGst && gstNumber && (
+                <p style={{ fontSize: "9px", fontWeight: 700, color: "#1d4ed8", margin: "2px 0 0 0" }}>
+                  GSTIN: {gstNumber}
+                </p>
+              )}
+            </div>
+
+            {/* Right: Invoice/Order Number */}
+            <div style={{ textAlign: "right" }}>
+              <p style={{ fontSize: "8px", fontWeight: 900, letterSpacing: "0.15em", color: "#64748b", textTransform: "uppercase", margin: 0 }}>
+                {docLabel}
+              </p>
+              <h2 style={{ fontSize: "18px", fontWeight: 900, color: "#0f172a", margin: "2px 0 0 0" }}>
+                #{invoice?.invoiceNumber}
+              </h2>
+              <p style={{ fontSize: "9px", color: "#475569", margin: "3px 0 0 0" }}>
+                Date:{" "}
+                {new Date(invoice?.createdAt).toLocaleDateString("en-IN", {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
+              {!isGst && (
+                <span style={{ display: "inline-block", marginTop: "4px", background: "#fff7ed", color: "#c2410c", fontSize: "8px", fontWeight: 900, padding: "2px 8px", borderRadius: "9999px", border: "1px solid #fed7aa" }}>
+                  NON-GST ORDER
+                </span>
+              )}
+            </div>
           </div>
         </header>
 
-        <section className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2">
+        {/* ── BILL TO ── */}
+        <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
           <div>
-            <p className="text-xs font-black uppercase tracking-widest text-slate-500">
+            <p style={{ fontSize: "8px", fontWeight: 900, letterSpacing: "0.12em", color: "#64748b", textTransform: "uppercase", margin: 0 }}>
               Bill To
             </p>
-            <h3 className="mt-3 text-xl font-black text-slate-950">
+            <h3 style={{ fontSize: "14px", fontWeight: 900, color: "#0f172a", margin: "4px 0 2px 0" }}>
               {invoice?.farmer?.name}
             </h3>
-            <p className="mt-1 text-sm font-semibold text-slate-700">
+            <p style={{ fontSize: "9px", color: "#475569", margin: "1px 0" }}>
               Mobile: {invoice?.farmer?.mobileNumber}
             </p>
-            <p className="text-sm font-semibold text-slate-700">
+            <p style={{ fontSize: "9px", color: "#475569", margin: "1px 0" }}>
               Area: {invoice?.farmer?.village}
             </p>
-            <p className="text-sm font-semibold text-slate-700">
-              Address: {invoice?.farmer?.address}
-            </p>
+            {invoice?.farmer?.address && (
+              <p style={{ fontSize: "9px", color: "#475569", margin: "1px 0" }}>
+                Address: {invoice?.farmer?.address}
+              </p>
+            )}
           </div>
 
-          <div className="rounded-2xl border border-slate-200 p-5">
-            <div className="flex justify-between text-sm font-bold text-slate-600">
-              <span>Payment Status</span>
-              <span className="capitalize text-slate-950">
-                {invoice?.paymentStatus}
-              </span>
-            </div>
-            {gstEnabled && (
-              <div className="mt-4 flex justify-between text-sm font-bold text-slate-600">
-                <span>GST Total</span>
+          <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "10px" }}>
+            {isGst && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", fontWeight: 700, color: "#64748b", marginBottom: "4px" }}>
+                <span>Total GST</span>
                 <span>{formatCurrency(invoice?.totalGST)}</span>
               </div>
             )}
-            <div className="mt-4 border-t border-slate-200 pt-4">
-              <div className="flex justify-between text-lg font-black text-slate-950">
-                <span>Grand Total</span>
-                <span>{formatCurrency(invoice?.grandTotal)}</span>
-              </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", fontWeight: 900, color: "#0f172a" }}>
+              <span>Grand Total</span>
+              <span>{formatCurrency(invoice?.grandTotal)}</span>
             </div>
           </div>
         </section>
 
-        <section className="mt-10 overflow-hidden border border-slate-300">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-100">
-              <tr>
-                {[
-                  "Product",
-                  "Length",
-                  "Width",
-                  "Sq Ft",
-                  "Rate / Sq Ft",
-                  "Quantity",
-                  ...(gstEnabled ? ["GST"] : []),
-                  "Amount",
-                ].map((heading) => (
-                  <th
-                    key={heading}
-                    className="border-b border-slate-300 px-3 py-3 text-xs font-black uppercase tracking-wider text-slate-700"
-                  >
-                    {heading}
-                  </th>
-                ))}
+        {/* ── ITEMS TABLE ── */}
+        <section style={{ marginBottom: "10px" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "9px" }}>
+            <thead>
+              <tr style={{ background: "#f1f5f9" }}>
+                <th style={{ border: "1px solid #cbd5e1", padding: "5px 6px", textAlign: "left", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "8px", color: "#475569" }}>Product</th>
+                {isGst && <th style={{ border: "1px solid #cbd5e1", padding: "5px 6px", textAlign: "left", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "8px", color: "#475569" }}>HSN</th>}
+                <th style={{ border: "1px solid #cbd5e1", padding: "5px 6px", textAlign: "center", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "8px", color: "#475569" }}>L (ft)</th>
+                <th style={{ border: "1px solid #cbd5e1", padding: "5px 6px", textAlign: "center", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "8px", color: "#475569" }}>W (ft)</th>
+                <th style={{ border: "1px solid #cbd5e1", padding: "5px 6px", textAlign: "center", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "8px", color: "#475569" }}>Sq Ft</th>
+                <th style={{ border: "1px solid #cbd5e1", padding: "5px 6px", textAlign: "center", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "8px", color: "#475569" }}>Qty</th>
+                <th style={{ border: "1px solid #cbd5e1", padding: "5px 6px", textAlign: "right", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "8px", color: "#475569" }}>Rate/SqFt</th>
+                <th style={{ border: "1px solid #cbd5e1", padding: "5px 6px", textAlign: "right", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "8px", color: "#475569" }}>Taxable Amt</th>
+                {isGst && <th style={{ border: "1px solid #cbd5e1", padding: "5px 6px", textAlign: "center", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "8px", color: "#475569" }}>GST %</th>}
+                {isGst && <th style={{ border: "1px solid #cbd5e1", padding: "5px 6px", textAlign: "right", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "8px", color: "#475569" }}>GST Amt</th>}
+                <th style={{ border: "1px solid #cbd5e1", padding: "5px 6px", textAlign: "right", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "8px", color: "#475569" }}>Total</th>
               </tr>
             </thead>
             <tbody>
-              {invoice?.products?.map((item) => {
+              {invoice?.products?.map((item, idx) => {
                 const sqFt =
                   item.sqFt ?? toNumber(item.length) * toNumber(item.width);
                 const baseAmount =
                   item.baseAmount ??
                   sqFt * toNumber(item.selectedRate) * toNumber(item.quantity, 1);
+                const gstAmt = isGst ? toNumber(item.gstAmount) : 0;
+                const lineTotal = baseAmount + gstAmt;
+                const hsnCode = item.hsnCode || item.product?.hsnCode || "—";
 
                 return (
-                  <tr key={item._id}>
-                    <td className="border-b border-slate-200 px-3 py-3 font-bold">
+                  <tr key={item._id || idx} style={{ pageBreakInside: "avoid" }}>
+                    <td style={{ border: "1px solid #e2e8f0", padding: "5px 6px", fontWeight: 700 }}>
                       {item?.product?.productName}
                     </td>
-                    <td className="border-b border-slate-200 px-3 py-3">
-                      {item?.length || 0} ft
+                    {isGst && (
+                      <td style={{ border: "1px solid #e2e8f0", padding: "5px 6px", textAlign: "left", color: "#475569" }}>
+                        {hsnCode}
+                      </td>
+                    )}
+                    <td style={{ border: "1px solid #e2e8f0", padding: "5px 6px", textAlign: "center" }}>
+                      {item?.length || 0}
                     </td>
-                    <td className="border-b border-slate-200 px-3 py-3">
-                      {item?.width || 0} ft
+                    <td style={{ border: "1px solid #e2e8f0", padding: "5px 6px", textAlign: "center" }}>
+                      {item?.width || 0}
                     </td>
-                    <td className="border-b border-slate-200 px-3 py-3">
-                      {sqFt} sq ft
+                    <td style={{ border: "1px solid #e2e8f0", padding: "5px 6px", textAlign: "center" }}>
+                      {sqFt}
                     </td>
-                    <td className="border-b border-slate-200 px-3 py-3">
-                      {formatCurrency(item?.selectedRate)}
-                    </td>
-                    <td className="border-b border-slate-200 px-3 py-3">
+                    <td style={{ border: "1px solid #e2e8f0", padding: "5px 6px", textAlign: "center" }}>
                       {item?.quantity}
                     </td>
-                    {gstEnabled && (
-                      <td className="border-b border-slate-200 px-3 py-3">
+                    <td style={{ border: "1px solid #e2e8f0", padding: "5px 6px", textAlign: "right" }}>
+                      {formatCurrency(item?.selectedRate)}
+                    </td>
+                    <td style={{ border: "1px solid #e2e8f0", padding: "5px 6px", textAlign: "right" }}>
+                      {formatCurrency(baseAmount)}
+                    </td>
+                    {isGst && (
+                      <td style={{ border: "1px solid #e2e8f0", padding: "5px 6px", textAlign: "center" }}>
                         {item?.gstRate}%
                       </td>
                     )}
-                    <td className="border-b border-slate-200 px-3 py-3 font-black">
-                      {formatCurrency(baseAmount)}
+                    {isGst && (
+                      <td style={{ border: "1px solid #e2e8f0", padding: "5px 6px", textAlign: "right" }}>
+                        {formatCurrency(gstAmt)}
+                      </td>
+                    )}
+                    <td style={{ border: "1px solid #e2e8f0", padding: "5px 6px", textAlign: "right", fontWeight: 900 }}>
+                      {formatCurrency(lineTotal)}
                     </td>
                   </tr>
                 );
@@ -301,25 +418,50 @@ _Thank you for your business! 🌾_`;
           </table>
         </section>
 
-        <section className="mt-8 ml-auto w-full max-w-sm space-y-4">
-          <div className="flex justify-between text-sm font-bold text-slate-600">
-            <span>Subtotal</span>
-            <span>{formatCurrency(invoice?.subTotal)}</span>
-          </div>
-          {gstEnabled && (
-            <div className="flex justify-between text-sm font-bold text-slate-600">
-              <span>GST Total</span>
-              <span>{formatCurrency(invoice?.totalGST)}</span>
+        {/* ── TOTALS ── */}
+        <section style={{ display: "flex", justifyContent: "flex-end", marginBottom: "12px" }}>
+          <div style={{ minWidth: "260px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", fontWeight: 700, color: "#64748b", marginBottom: "4px" }}>
+              <span>Subtotal (Taxable)</span>
+              <span>{formatCurrency(invoice?.subTotal)}</span>
             </div>
-          )}
-          <div className="flex justify-between border-t-2 border-slate-900 pt-4 text-xl font-black text-slate-950">
-            <span>Grand Total</span>
-            <span>{formatCurrency(invoice?.grandTotal)}</span>
+
+            {isGst && (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", fontWeight: 700, color: "#64748b", marginBottom: "2px" }}>
+                  <span>CGST (50%)</span>
+                  <span>{formatCurrency(cgst)}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", fontWeight: 700, color: "#64748b", marginBottom: "2px" }}>
+                  <span>SGST (50%)</span>
+                  <span>{formatCurrency(sgst)}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                  <span>Total GST</span>
+                  <span>{formatCurrency(totalGST)}</span>
+                </div>
+              </>
+            )}
+
+            <div style={{ borderTop: "2px solid #0f172a", paddingTop: "6px", marginTop: "4px", display: "flex", justifyContent: "space-between", fontSize: "14px", fontWeight: 900, color: "#0f172a" }}>
+              <span>Grand Total</span>
+              <span>{formatCurrency(invoice?.grandTotal)}</span>
+            </div>
           </div>
         </section>
 
-        <footer className="mt-16 border-t border-slate-200 pt-6 text-center text-sm font-semibold text-slate-600">
-          Thank you for your business. 🌾
+        {/* ── TERMS / NOTES ── */}
+        {isGst && (
+          <section style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "8px 12px", marginBottom: "10px", fontSize: "8px", color: "#64748b" }}>
+            <strong>Note:</strong> This is a computer-generated GST Invoice. E&OE.
+            {gstNumber && ` | GSTIN: ${gstNumber}`}
+          </section>
+        )}
+
+        {/* ── FOOTER ── */}
+        <footer id="invoice-a4-footer" style={{ borderTop: "1px solid #e2e8f0", paddingTop: "8px", textAlign: "center", fontSize: "8px", color: "#94a3b8", marginTop: "8px" }}>
+          Thank you for your business. 🌾 | {shopName}
+          {shopMobile && ` | ${shopMobile}`}
         </footer>
       </div>
     </div>

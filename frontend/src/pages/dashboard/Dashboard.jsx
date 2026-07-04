@@ -74,20 +74,16 @@ const Dashboard = () => {
         0
       ),
       todayOrders: todayInvoices.length,
-      pendingOrders: invoices.filter(
-        (invoice) => invoice.paymentStatus === "pending"
-      ).length,
-      completedOrders: invoices.filter(
-        (invoice) => invoice.paymentStatus === "paid"
-      ).length,
       monthlySales: monthlyInvoices.reduce(
         (total, invoice) => total + Number(invoice.grandTotal || 0),
         0
       ),
-      outstandingPayments: customers.reduce(
-        (total, customer) => total + Number(customer.dueAmount || 0),
-        0
-      ),
+      totalGSTInvoices: invoices.filter(
+        (invoice) => invoice.documentType === "gst_invoice" || (invoice.documentType == null && invoice.gstEnabled !== false)
+      ).length,
+      totalOrders: invoices.filter(
+        (invoice) => invoice.documentType === "order"
+      ).length,
       recentInvoices: invoices.slice(0, 6),
       topCustomers,
     };
@@ -101,34 +97,28 @@ const Dashboard = () => {
       color: "bg-blue-50 text-blue-700",
     },
     {
-      label: "Today's Orders",
+      label: "Today's Bills",
       value: dashboard.todayOrders,
       icon: <CalendarCheck size={22} />,
       color: "bg-indigo-50 text-indigo-700",
     },
     {
-      label: "Pending Orders",
-      value: dashboard.pendingOrders,
-      icon: <Clock3 size={22} />,
-      color: "bg-amber-50 text-amber-700",
-    },
-    {
-      label: "Completed Orders",
-      value: dashboard.completedOrders,
-      icon: <CheckCircle2 size={22} />,
-      color: "bg-emerald-50 text-emerald-700",
-    },
-    {
       label: "Monthly Sales",
       value: formatCurrency(dashboard.monthlySales),
       icon: <TrendingUp size={22} />,
+      color: "bg-emerald-50 text-emerald-700",
+    },
+    {
+      label: "Total GST Invoices",
+      value: dashboard.totalGSTInvoices,
+      icon: <FileText size={22} />,
       color: "bg-blue-50 text-blue-700",
     },
     {
-      label: "Outstanding Payments",
-      value: formatCurrency(dashboard.outstandingPayments),
-      icon: <Receipt size={22} />,
-      color: "bg-rose-50 text-rose-700",
+      label: "Total Non-GST Orders",
+      value: dashboard.totalOrders,
+      icon: <FileText size={22} />,
+      color: "bg-orange-50 text-orange-700",
     },
   ];
 

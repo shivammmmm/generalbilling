@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
+  FileCheck,
   FilePlus2,
+  FileText,
   IndianRupee,
+  LayoutList,
   Receipt,
   WalletCards,
 } from "lucide-react";
@@ -15,6 +18,7 @@ import { formatCurrency } from "../../utils/billing";
 const Invoices = () => {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterType, setFilterType] = useState("all"); // "all" | "gst_invoice" | "order"
   const [stats, setStats] = useState({
     totalAmount: 0,
     pendingAmount: 0,
@@ -33,11 +37,11 @@ const Invoices = () => {
           (acc, invoice) => acc + Number(invoice.grandTotal || 0),
           0
         ),
-        pendingAmount: invoiceList
-          .filter((invoice) => invoice.paymentStatus === "pending")
+        gstAmount: invoiceList
+          .filter((invoice) => invoice.documentType === "gst_invoice" || (invoice.documentType == null && invoice.gstEnabled !== false))
           .reduce((acc, invoice) => acc + Number(invoice.grandTotal || 0), 0),
-        paidAmount: invoiceList
-          .filter((invoice) => invoice.paymentStatus === "paid")
+        orderAmount: invoiceList
+          .filter((invoice) => invoice.documentType === "order")
           .reduce((acc, invoice) => acc + Number(invoice.grandTotal || 0), 0),
       });
     } catch (error) {
@@ -64,24 +68,41 @@ const Invoices = () => {
     getInvoices();
   }, []);
 
+  // Filtered list based on tab
+  const filteredInvoices = invoices.filter((inv) => {
+    if (filterType === "all") return true;
+    if (filterType === "gst_invoice") {
+      return inv.documentType === "gst_invoice" || (inv.documentType == null && inv.gstEnabled !== false);
+    }
+    if (filterType === "order") {
+      return inv.documentType === "order";
+    }
+    return true;
+  });
+
+  const gstCount = invoices.filter(
+    (inv) => inv.documentType === "gst_invoice" || (inv.documentType == null && inv.gstEnabled !== false)
+  ).length;
+  const orderCount = invoices.filter((inv) => inv.documentType === "order").length;
+
   const cards = [
     {
-      label: "Total Invoiced",
+      label: "Total Sales",
       value: stats.totalAmount,
       icon: <Receipt size={22} />,
+      color: "text-indigo-700 bg-indigo-50",
+    },
+    {
+      label: "GST Invoices Total",
+      value: stats.gstAmount,
+      icon: <FileCheck size={22} />,
       color: "text-blue-700 bg-blue-50",
     },
     {
-      label: "Outstanding Payments",
-      value: stats.pendingAmount,
-      icon: <WalletCards size={22} />,
-      color: "text-amber-700 bg-amber-50",
-    },
-    {
-      label: "Received Payments",
-      value: stats.paidAmount,
-      icon: <IndianRupee size={22} />,
-      color: "text-emerald-700 bg-emerald-50",
+      label: "Orders Total",
+      value: stats.orderAmount,
+      icon: <FileText size={22} />,
+      color: "text-orange-700 bg-orange-50",
     },
   ];
 
@@ -90,14 +111,13 @@ const Invoices = () => {
       <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="mb-2 text-xs font-black uppercase tracking-[0.25em] text-blue-600">
-            Invoices
+            Invoices & Orders
           </p>
           <h1 className="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
             Invoice List
           </h1>
           <p className="mt-3 max-w-xl text-sm font-medium leading-6 text-slate-600">
-            Review flex printing invoices, totals, payment status, and print
-            copies.
+            GST Invoices and Non-GST Orders — all billing records in one place.
           </p>
         </div>
 
@@ -106,11 +126,12 @@ const Invoices = () => {
           className="inline-flex items-center justify-center gap-3 rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
         >
           <FilePlus2 size={20} />
-          Create Invoice
+          Create Invoice / Order
           <ArrowRight size={18} />
         </Link>
       </div>
 
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
         {cards.map((card) => (
           <div
@@ -132,12 +153,51 @@ const Invoices = () => {
         ))}
       </div>
 
+      {/* Filter Tabs */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => setFilterType("all")}
+          className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-black transition ${
+            filterType === "all"
+              ? "border-slate-900 bg-slate-900 text-white"
+              : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
+          }`}
+        >
+          <LayoutList size={16} />
+          All ({invoices.length})
+        </button>
+
+        <button
+          onClick={() => setFilterType("gst_invoice")}
+          className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-black transition ${
+            filterType === "gst_invoice"
+              ? "border-blue-600 bg-blue-600 text-white"
+              : "border-slate-200 bg-white text-slate-600 hover:border-blue-300"
+          }`}
+        >
+          <FileCheck size={16} />
+          GST Invoices ({gstCount})
+        </button>
+
+        <button
+          onClick={() => setFilterType("order")}
+          className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-black transition ${
+            filterType === "order"
+              ? "border-orange-500 bg-orange-500 text-white"
+              : "border-slate-200 bg-white text-slate-600 hover:border-orange-300"
+          }`}
+        >
+          <FileText size={16} />
+          Orders ({orderCount})
+        </button>
+      </div>
+
       {loading ? (
         <div className="rounded-3xl bg-white p-12 text-center text-sm font-bold text-slate-500 shadow-sm">
           Loading invoices...
         </div>
       ) : (
-        <InvoiceTable invoices={invoices} deleteInvoice={deleteInvoice} />
+        <InvoiceTable invoices={filteredInvoices} deleteInvoice={deleteInvoice} />
       )}
     </div>
   );

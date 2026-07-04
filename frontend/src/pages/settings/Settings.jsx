@@ -17,6 +17,10 @@ const Settings = () => {
     reminderDaysBeforeDue: "",
     overdueReminderEnabled: true,
     lowStockAlertEnabled: true,
+    gstInvoicePrefix: "GST-INV",
+    orderPrefix: "ORD",
+    gstInvoiceCounter: 0,
+    orderCounter: 0,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -226,6 +230,72 @@ const Settings = () => {
               />
               Product alert enabled
             </label>
+          </div>
+        </section>
+
+        {/* ── Invoice Number Series ── */}
+        <section>
+          <h2 className="mb-1 text-xl font-black text-slate-950">
+            Invoice Number Series
+          </h2>
+          <p className="mb-5 text-sm font-medium text-slate-500">
+            Configure prefix for GST Invoice and Non-GST Order number series.
+            Counters auto-increment and are never reset on delete.
+          </p>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div>
+              <label className={labelClass}>GST Invoice Prefix</label>
+              <input
+                type="text"
+                name="gstInvoicePrefix"
+                value={settings.gstInvoicePrefix || "GST-INV"}
+                onChange={handleChange}
+                className={inputClass}
+                placeholder="GST-INV"
+              />
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Example: <span className="font-black text-blue-600">{settings.gstInvoicePrefix || "GST-INV"}-0001</span>
+              </p>
+            </div>
+
+            <div>
+              <label className={labelClass}>Non-GST Order Prefix</label>
+              <input
+                type="text"
+                name="orderPrefix"
+                value={settings.orderPrefix || "ORD"}
+                onChange={handleChange}
+                className={inputClass}
+                placeholder="ORD"
+              />
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Example: <span className="font-black text-orange-600">{settings.orderPrefix || "ORD"}-0001</span>
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+              <p className="text-xs font-black uppercase tracking-widest text-blue-600">
+                GST Invoice Counter
+              </p>
+              <p className="mt-2 text-2xl font-black text-slate-950">
+                {settings.gstInvoiceCounter || 0}
+              </p>
+              <p className="text-xs font-semibold text-slate-500">
+                Total GST invoices created
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4">
+              <p className="text-xs font-black uppercase tracking-widest text-orange-600">
+                Order Counter
+              </p>
+              <p className="mt-2 text-2xl font-black text-slate-950">
+                {settings.orderCounter || 0}
+              </p>
+              <p className="text-xs font-semibold text-slate-500">
+                Total non-GST orders created
+              </p>
+            </div>
           </div>
         </section>
 

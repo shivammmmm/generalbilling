@@ -8,6 +8,16 @@ const invoiceSchema = new mongoose.Schema(
       required: true,
     },
 
+    // ================= DOCUMENT TYPE =================
+    // "gst_invoice" = GST Invoice (GST-INV-XXXX series)
+    // "order"       = Non-GST Order / Kaccha Bill (ORD-XXXX series)
+
+    documentType: {
+      type: String,
+      enum: ["gst_invoice", "order"],
+      default: "gst_invoice",
+    },
+
     farmer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Farmer",
@@ -31,6 +41,12 @@ const invoiceSchema = new mongoose.Schema(
         product: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Product",
+        },
+
+        // HSN code snapshot at invoice creation time
+        hsnCode: {
+          type: String,
+          default: "",
         },
 
         quantity: {

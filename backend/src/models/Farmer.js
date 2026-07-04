@@ -27,6 +27,9 @@ const farmerSchema = new mongoose.Schema(
     aadhaarNumber: {
       type: String,
       trim: true,
+      sparse: true,   // null values allowed for multiple farmers
+      unique: true,   // but actual values must be unique
+      default: null,
     },
 
     gstNumber: {
