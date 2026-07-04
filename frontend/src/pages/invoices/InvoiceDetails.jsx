@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Printer, MessageCircle } from "lucide-react";
+import { ArrowLeft, Printer, MessageCircle, FileCheck, FileText } from "lucide-react";
 import API from "../../services/api";
 import { formatCurrency, toNumber } from "../../utils/billing";
 
@@ -30,10 +30,12 @@ const InvoiceDetails = () => {
     const phone = invoice?.farmer?.mobileNumber?.replace(/\D/g, "");
     if (!phone) { alert("Customer ka mobile number nahi mila."); return; }
 
+    const isGst = invoice?.documentType !== "order" && invoice?.gstEnabled !== false;
+    const docLabel = isGst ? "Invoice" : "Order";
+
     const date = new Date(invoice?.createdAt).toLocaleDateString("en-IN", {
       day: "2-digit", month: "long", year: "numeric",
     });
-    const gstOn = invoice?.gstEnabled !== false;
     const productLines = invoice?.products
       ?.map((item) => {
         const sqFt = item.sqFt ?? toNumber(item.length) * toNumber(item.width);
@@ -42,7 +44,11 @@ const InvoiceDetails = () => {
       })
       .join("\n");
 
-    const msg = `🧾 *Invoice #${invoice?.invoiceNumber}*\n📅 Date: ${date}\n👤 Customer: ${invoice?.farmer?.name}\n📍 Area: ${invoice?.farmer?.village}\n\n📦 *Items:*\n${productLines}\n\n💰 Subtotal: ₹${Math.round(toNumber(invoice?.subTotal)).toLocaleString("en-IN")}\n${gstOn ? `🏷️ GST: ₹${Math.round(toNumber(invoice?.totalGST)).toLocaleString("en-IN")}\n` : ""}✅ *Grand Total: ₹${Math.round(toNumber(invoice?.grandTotal)).toLocaleString("en-IN")}*\n\nPayment Status: ${invoice?.paymentStatus?.toUpperCase()}\n\n_Thank you! 🌾_`;
+    const gstLine = isGst
+      ? `🏷️ GST: ₹${Math.round(toNumber(invoice?.totalGST)).toLocaleString("en-IN")}\n`
+      : "";
+
+    const msg = `🧾 *${docLabel} #${invoice?.invoiceNumber}*\n📅 Date: ${date}\n👤 Customer: ${invoice?.farmer?.name}\n📍 Area: ${invoice?.farmer?.village}\n\n📦 *Items:*\n${productLines}\n\n💰 Subtotal: ₹${Math.round(toNumber(invoice?.subTotal)).toLocaleString("en-IN")}\n${gstLine}✅ *Grand Total: ₹${Math.round(toNumber(invoice?.grandTotal)).toLocaleString("en-IN")}*\n\n_Thank you! 🌾_`;
 
     window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`, "_blank");
   };
@@ -63,6 +69,9 @@ const InvoiceDetails = () => {
     );
   }
 
+  const isGst = invoice?.documentType !== "order" && invoice?.gstEnabled !== false;
+  const docLabel = isGst ? "Invoice" : "Order";
+
   return (
     <div className="space-y-8 pb-12">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -74,9 +83,22 @@ const InvoiceDetails = () => {
             <ArrowLeft size={16} />
             Back to Invoices
           </Link>
-          <h1 className="text-3xl font-black text-slate-950">
-            Invoice #{invoice.invoiceNumber}
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-black text-slate-950">
+              {docLabel} #{invoice.invoiceNumber}
+            </h1>
+            {isGst ? (
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700">
+                <FileCheck size={13} />
+                GST Invoice
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-orange-50 px-3 py-1.5 text-xs font-black text-orange-700">
+                <FileText size={13} />
+                Non-GST Order
+              </span>
+            )}
+          </div>
           <p className="mt-2 text-sm font-semibold text-slate-500">
             {new Date(invoice.createdAt).toLocaleDateString("en-IN", {
               day: "2-digit",
@@ -96,18 +118,22 @@ const InvoiceDetails = () => {
             Send on WhatsApp
           </button>
 
-          {/* Print/View Invoice */}
+          {/* Print / View Invoice */}
           <Link
             to={`/invoices/print/${invoice._id}`}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
+            className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 font-black text-white shadow-lg hover:opacity-90 ${
+              isGst
+                ? "bg-blue-600 shadow-blue-200"
+                : "bg-orange-500 shadow-orange-200"
+            }`}
           >
             <Printer size={18} />
-            Print Invoice
+            Print {docLabel}
           </Link>
         </div>
       </div>
 
-      <section className="grid grid-cols-1 gap-5 md:grid-cols-3">
+      <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-black uppercase tracking-widest text-slate-500">
             Customer
@@ -125,32 +151,22 @@ const InvoiceDetails = () => {
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-black uppercase tracking-widest text-slate-500">
-            Rate Type
-          </p>
-          <h2 className="mt-3 text-xl font-black text-slate-950">
-            {invoice.rateType || "Rate A"}
-          </h2>
-          <p className="mt-1 text-sm font-semibold capitalize text-slate-600">
-            {invoice.paymentStatus}
-          </p>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-500">
             Grand Total
           </p>
           <h2 className="mt-3 text-2xl font-black text-blue-700">
             {formatCurrency(invoice.grandTotal)}
           </h2>
-          <p className="mt-1 text-sm font-semibold text-slate-600">
-            GST {formatCurrency(invoice.totalGST)}
-          </p>
+          {isGst && (
+            <p className="mt-1 text-sm font-semibold text-slate-600">
+              GST {formatCurrency(invoice.totalGST)}
+            </p>
+          )}
         </div>
       </section>
 
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 p-6">
-          <h2 className="text-xl font-black text-slate-950">Invoice Items</h2>
+          <h2 className="text-xl font-black text-slate-950">{docLabel} Items</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left">
@@ -158,12 +174,13 @@ const InvoiceDetails = () => {
               <tr>
                 {[
                   "Product",
+                  ...(isGst ? ["HSN Code"] : []),
                   "Length",
                   "Width",
                   "Sq Ft",
                   "Rate / Sq Ft",
                   "Quantity",
-                  "GST",
+                  ...(isGst ? ["GST"] : []),
                   "Amount",
                 ].map((heading) => (
                   <th
@@ -182,12 +199,18 @@ const InvoiceDetails = () => {
                 const amount =
                   item.baseAmount ??
                   sqFt * toNumber(item.selectedRate) * toNumber(item.quantity, 1);
+                const hsnCode = item.hsnCode || item.product?.hsnCode || "—";
 
                 return (
                   <tr key={item._id || item.product?._id}>
                     <td className="px-5 py-4 font-bold text-slate-950">
                       {item.product?.productName || item.product}
                     </td>
+                    {isGst && (
+                      <td className="px-5 py-4 font-semibold text-slate-600">
+                        {hsnCode}
+                      </td>
+                    )}
                     <td className="px-5 py-4 font-semibold text-slate-600">
                       {item.length || 0} ft
                     </td>
@@ -203,9 +226,11 @@ const InvoiceDetails = () => {
                     <td className="px-5 py-4 font-semibold text-slate-600">
                       {item.quantity}
                     </td>
-                    <td className="px-5 py-4 font-semibold text-slate-600">
-                      {item.gstRate}% ({formatCurrency(item.gstAmount)})
-                    </td>
+                    {isGst && (
+                      <td className="px-5 py-4 font-semibold text-slate-600">
+                        {item.gstRate}% ({formatCurrency(item.gstAmount)})
+                      </td>
+                    )}
                     <td className="px-5 py-4 font-black text-slate-950">
                       {formatCurrency(amount)}
                     </td>
@@ -223,10 +248,22 @@ const InvoiceDetails = () => {
             <span>Subtotal</span>
             <span>{formatCurrency(invoice.subTotal)}</span>
           </div>
-          <div className="flex justify-between text-sm font-bold text-slate-600">
-            <span>GST Total</span>
-            <span>{formatCurrency(invoice.totalGST)}</span>
-          </div>
+          {isGst && (
+            <>
+              <div className="flex justify-between text-sm font-bold text-slate-600">
+                <span>CGST (50%)</span>
+                <span>{formatCurrency(toNumber(invoice.totalGST) / 2)}</span>
+              </div>
+              <div className="flex justify-between text-sm font-bold text-slate-600">
+                <span>SGST (50%)</span>
+                <span>{formatCurrency(toNumber(invoice.totalGST) / 2)}</span>
+              </div>
+              <div className="flex justify-between text-sm font-bold text-slate-600">
+                <span>Total GST</span>
+                <span>{formatCurrency(invoice.totalGST)}</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between border-t border-slate-200 pt-4 text-lg font-black text-slate-950">
             <span>Grand Total</span>
             <span>{formatCurrency(invoice.grandTotal)}</span>

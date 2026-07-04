@@ -12,6 +12,7 @@ import {
   UserCog,
   Users,
   X,
+  Zap,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useContext } from "react";
@@ -22,9 +23,8 @@ const menuItems = [
   { name: "Customers", path: "/farmers", icon: <Users size={21} /> },
   { name: "Products", path: "/products", icon: <Boxes size={21} /> },
   { name: "Categories", path: "/categories", icon: <FolderTree size={21} /> },
-  { name: "Orders", path: "/billing", icon: <ShoppingBag size={21} /> },
-  { name: "Invoices", path: "/invoices", icon: <Receipt size={21} /> },
-  { name: "Payments", path: "/transactions", icon: <CreditCard size={21} /> },
+  { name: "Create Bill", path: "/billing", icon: <ShoppingBag size={21} /> },
+  { name: "Invoices & Orders", path: "/invoices", icon: <Receipt size={21} /> },
   { name: "Reports", path: "/reports", icon: <BarChart3 size={21} /> },
   { name: "Users", path: "/users", icon: <UserCog size={21} /> },
   { name: "Settings", path: "/settings", icon: <Settings size={21} /> },
@@ -40,17 +40,24 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       }`}
     >
+      {/* Brand */}
       <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-200">
-            <FileText size={23} />
+          <div
+            className="flex h-11 w-11 items-center justify-center rounded-2xl shadow-lg"
+            style={{
+              background: "linear-gradient(135deg, #6366f1, #3b82f6)",
+              boxShadow: "0 4px 14px rgba(99,102,241,0.4)",
+            }}
+          >
+            <Zap size={22} className="text-white" fill="white" />
           </div>
           <div>
             <h1 className="text-lg font-black tracking-tight text-slate-950">
-              FlexBill
+              Cloudify
             </h1>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-              Per Sq Ft
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              General Billing Software
             </p>
           </div>
         </div>
@@ -64,6 +71,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         </button>
       </div>
 
+      {/* Nav */}
       <nav className="flex-1 space-y-1 overflow-y-auto p-4">
         {menuItems.map((item) => (
           <NavLink
@@ -73,9 +81,17 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
             className={({ isActive }) =>
               `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-black transition ${
                 isActive
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-200"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-blue-700"
+                  ? "text-white shadow-lg"
+                  : "text-slate-600 hover:bg-slate-50 hover:text-indigo-700"
               }`
+            }
+            style={({ isActive }) =>
+              isActive
+                ? {
+                    background: "linear-gradient(135deg, #6366f1, #3b82f6)",
+                    boxShadow: "0 4px 14px rgba(99,102,241,0.35)",
+                  }
+                : {}
             }
           >
             {item.icon}
@@ -84,6 +100,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
         ))}
       </nav>
 
+      {/* Sign Out */}
       <div className="border-t border-slate-100 p-4">
         <button
           onClick={() => {

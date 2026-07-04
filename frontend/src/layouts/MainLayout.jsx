@@ -3,6 +3,7 @@ import { Menu } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import Navbar from "../components/common/Navbar";
 import Sidebar from "../components/common/Sidebar";
+import KeyboardShortcuts from "../components/common/KeyboardShortcuts";
 
 const MainLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -34,7 +35,7 @@ const MainLayout = ({ children }) => {
               >
                 <Menu size={20} />
               </button>
-              <div className="text-lg font-black text-slate-900">FlexBill</div>
+              <div className="text-lg font-black text-slate-900">⚡ Cloudify</div>
             </div>
 
             <Navbar />
@@ -43,7 +44,7 @@ const MainLayout = ({ children }) => {
           </div>
 
           <footer className="flex flex-col gap-4 border-t border-slate-100 bg-white/70 px-4 py-6 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 md:flex-row md:items-center md:justify-between md:px-8">
-            <span>Copyright 2026 FlexBill</span>
+            <span>Copyright 2026 Cloudify — General Billing Software</span>
             <div className="flex flex-wrap gap-4">
               <a href="#" className="transition-colors hover:text-blue-600">
                 Privacy
@@ -58,6 +59,7 @@ const MainLayout = ({ children }) => {
           </footer>
         </main>
       </div>
+      <KeyboardShortcuts />
     </div>
   );
 };

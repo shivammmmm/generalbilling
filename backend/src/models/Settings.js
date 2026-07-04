@@ -94,6 +94,30 @@ const settingsSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+
+
+
+    // ================= INVOICE NUMBER SERIES =================
+
+    gstInvoicePrefix: {
+      type: String,
+      default: "GST-INV",
+    },
+
+    orderPrefix: {
+      type: String,
+      default: "ORD",
+    },
+
+    gstInvoiceCounter: {
+      type: Number,
+      default: 0,
+    },
+
+    orderCounter: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

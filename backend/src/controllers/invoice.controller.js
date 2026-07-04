@@ -3,7 +3,7 @@ import Farmer from "../models/Farmer.js";
 import Product from "../models/Product.js";
 import Transaction from "../models/Transaction.js";
 
-import generateInvoiceNumber from "../utils/generateInvoiceNumber.js";
+import generateDocumentNumber from "../utils/generateInvoiceNumber.js";
 
 // ================= CREATE INVOICE =================
 
@@ -13,8 +13,12 @@ export const createInvoice = async (req, res) => {
       farmerId,
       billingType = "credit",
       rateType,
+      documentType = "gst_invoice",
       products = [],
     } = req.body;
+
+    // documentType determines GST on/off
+    const gstEnabled = documentType === "gst_invoice";
 
     // farmer check
 
@@ -74,10 +78,14 @@ export const createInvoice = async (req, res) => {
       const length = Number(item.length) || 0;
       const width = Number(item.width) || 0;
       const sqFt = length * width;
+
+      // GST only applies for GST invoices
       const gstRate =
-        item.gstRate !== undefined && item.gstRate !== ""
-          ? Number(item.gstRate)
-          : product.gstRate || 0;
+        gstEnabled
+          ? (item.gstRate !== undefined && item.gstRate !== ""
+              ? Number(item.gstRate)
+              : product.gstRate || 0)
+          : 0;
 
       const itemTotal = sqFt * selectedRate * quantity;
 
@@ -91,6 +99,9 @@ export const createInvoice = async (req, res) => {
 
       invoiceProducts.push({
         product: product._id,
+
+        // snapshot HSN code at time of invoice creation
+        hsnCode: product.hsnCode || "",
 
         quantity,
 
@@ -116,9 +127,9 @@ export const createInvoice = async (req, res) => {
 
     const grandTotal = subTotal + totalGST;
 
-    // invoice number
+    // document number (async, DB-backed sequential)
 
-    const invoiceNumber = generateInvoiceNumber();
+    const invoiceNumber = await generateDocumentNumber(documentType);
 
     // payment status
 
@@ -133,6 +144,8 @@ export const createInvoice = async (req, res) => {
     const invoice = await Invoice.create({
       invoiceNumber,
 
+      documentType,
+
       farmer: farmerId,
 
       billingType,
@@ -140,6 +153,8 @@ export const createInvoice = async (req, res) => {
       rateType: activeRateType,
 
       products: invoiceProducts,
+
+      gstEnabled,
 
       subTotal,
 
@@ -246,12 +261,14 @@ export const printInvoice = async (req, res) => {
       });
     }
 
-    // printable response
+    // also send settings for shop name/GST number on printout
+    const Settings = (await import("../models/Settings.js")).default;
+    const settings = await Settings.findOne() || {};
 
     res.status(200).json({
       success: true,
-
       printableInvoice: invoice,
+      settings,
     });
   } catch (error) {
     res.status(500).json({

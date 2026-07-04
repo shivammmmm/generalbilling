@@ -7,6 +7,7 @@ import {
   Percent,
   Save,
   Tag,
+  Hash,
 } from "lucide-react";
 
 const ProductForm = ({ initialData = {}, onSubmit, loading }) => {
@@ -14,6 +15,7 @@ const ProductForm = ({ initialData = {}, onSubmit, loading }) => {
     productName: "",
     category: "",
     unit: "Sq Ft",
+    hsnCode: "",
     gstRate: "0",
     cashRate: "",
     creditRate: "",
@@ -27,6 +29,7 @@ const ProductForm = ({ initialData = {}, onSubmit, loading }) => {
         productName: initialData.productName || "",
         category: initialData.category || "",
         unit: initialData.unit || "Sq Ft",
+        hsnCode: initialData.hsnCode || "",
         gstRate: initialData.gstRate ?? "0",
         cashRate: initialData.cashRate ?? "",
         creditRate: initialData.creditRate ?? "",
@@ -116,6 +119,21 @@ const ProductForm = ({ initialData = {}, onSubmit, loading }) => {
                 name="unit"
                 placeholder="Sq Ft"
                 value={formData.unit}
+                onChange={handleChange}
+                className="input-field pl-10"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className={labelClasses}>HSN Code</label>
+            <div className="relative">
+              <FieldIcon icon={<Hash size={18} />} />
+              <input
+                type="text"
+                name="hsnCode"
+                placeholder="e.g. 4911"
+                value={formData.hsnCode}
                 onChange={handleChange}
                 className="input-field pl-10"
               />
