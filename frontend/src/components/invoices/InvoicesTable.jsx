@@ -9,6 +9,7 @@ import {
   User,
   FileCheck,
   FileText,
+  Pencil,
 } from "lucide-react";
 import { formatCurrency } from "../../utils/billing";
 
@@ -58,7 +59,7 @@ const InvoiceTable = ({ invoices, deleteInvoice }) => {
                   <tr key={invoice._id} className="transition hover:bg-slate-50">
                     {/* Invoice Number */}
                     <td className="px-6 py-5">
-                      <p className="font-black text-slate-900">
+                      <p className="font-black text-slate-950">
                         #{invoice.invoiceNumber}
                       </p>
                       <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -134,6 +135,13 @@ const InvoiceTable = ({ invoices, deleteInvoice }) => {
                           title="View"
                         >
                           <Eye size={18} />
+                        </Link>
+                        <Link
+                          to={`/invoices/edit/${invoice._id}`}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-50 text-yellow-600 transition hover:bg-yellow-600 hover:text-white"
+                          title="Edit"
+                        >
+                          <Pencil size={18} />
                         </Link>
                         <Link
                           to={`/invoices/print/${invoice._id}`}

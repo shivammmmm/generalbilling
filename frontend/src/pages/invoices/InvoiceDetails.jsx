@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Printer, MessageCircle, FileCheck, FileText } from "lucide-react";
+import { ArrowLeft, Printer, MessageCircle, FileCheck, FileText, Pencil } from "lucide-react";
 import API from "../../services/api";
 import { formatCurrency, toNumber } from "../../utils/billing";
 
@@ -117,6 +117,15 @@ const InvoiceDetails = () => {
             <MessageCircle size={18} />
             Send on WhatsApp
           </button>
+
+          {/* Edit Invoice Button */}
+          <Link
+            to={`/invoices/edit/${invoice._id}`}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-yellow-500 px-5 py-3 font-black text-white shadow-lg shadow-yellow-100 hover:bg-yellow-600"
+          >
+            <Pencil size={18} />
+            Edit {docLabel}
+          </Link>
 
           {/* Print / View Invoice */}
           <Link

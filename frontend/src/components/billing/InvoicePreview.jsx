@@ -23,7 +23,7 @@ const InvoicePreview = ({
   const isGst = documentType === "gst_invoice";
 
   return (
-    <div className="sticky top-8 rounded-3xl border border-slate-200 bg-white shadow-sm">
+    <div className="xl:sticky xl:top-8 rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 p-6">
         <div className="flex items-start justify-between gap-4">
           <div>

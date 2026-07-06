@@ -18,6 +18,7 @@ import CreditTransaction from "./pages/transactions/CreditTransaction";
 import Invoices from "./pages/invoices/Invoices";
 import InvoiceDetails from "./pages/invoices/InvoiceDetails";
 import PrintInvoice from "./pages/invoices/PrintInvoice";
+import EditInvoice from "./pages/invoices/EditInvoice";
 import Billing from "./pages/billing/Billing";
 import Reports from "./pages/reports/Reports";
 import Users from "./pages/users/Users";
@@ -39,6 +40,7 @@ const protectedRoutes = [
   { path: "/invoices", element: <Invoices /> },
   { path: "/invoices/create", element: <Navigate to="/billing" replace /> },
   { path: "/invoices/print/:id", element: <PrintInvoice /> },
+  { path: "/invoices/edit/:id", element: <EditInvoice /> },
   { path: "/invoices/:id", element: <InvoiceDetails /> },
   { path: "/transactions", element: <Transactions /> },
   { path: "/transactions/payment", element: <PaymentTransaction /> },

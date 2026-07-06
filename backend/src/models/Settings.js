@@ -67,6 +67,11 @@ const settingsSchema = new mongoose.Schema(
       default: "",
     },
 
+    upiId: {
+      type: String,
+      default: "",
+    },
+
 
 
     // ================= INTEREST SETTINGS =================

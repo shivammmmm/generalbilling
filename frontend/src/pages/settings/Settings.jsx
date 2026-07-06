@@ -15,6 +15,7 @@ const Settings = () => {
     accountHolderName: "",
     accountNumber: "",
     ifscCode: "",
+    upiId: "",
     reminderDaysBeforeDue: "",
     overdueReminderEnabled: true,
     lowStockAlertEnabled: true,
@@ -184,6 +185,7 @@ const Settings = () => {
               ["accountHolderName", "Account Holder Name"],
               ["accountNumber", "Account Number"],
               ["ifscCode", "IFSC Code"],
+              ["upiId", "UPI ID for QR Code"],
             ].map(([name, label]) => (
               <div key={name}>
                 <label className={labelClass}>{label}</label>
