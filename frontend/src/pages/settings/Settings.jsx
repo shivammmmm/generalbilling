@@ -11,6 +11,7 @@ const Settings = () => {
     gstNumber: "",
     gstPercentage: "",
     bankName: "",
+    bankBranch: "",
     accountHolderName: "",
     accountNumber: "",
     ifscCode: "",
@@ -179,6 +180,7 @@ const Settings = () => {
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {[
               ["bankName", "Bank Name"],
+              ["bankBranch", "Bank Branch"],
               ["accountHolderName", "Account Holder Name"],
               ["accountNumber", "Account Number"],
               ["ifscCode", "IFSC Code"],

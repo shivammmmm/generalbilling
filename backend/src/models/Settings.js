@@ -47,6 +47,11 @@ const settingsSchema = new mongoose.Schema(
       default: "",
     },
 
+    bankBranch: {
+      type: String,
+      default: "",
+    },
+
     accountHolderName: {
       type: String,
       default: "",
