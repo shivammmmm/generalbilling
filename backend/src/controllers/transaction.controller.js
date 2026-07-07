@@ -291,6 +291,12 @@ export const searchTransactions = async (req, res) => {
 
 export const deleteTransaction = async (req, res) => {
   try {
+    if (req.user && req.user.role === "operator") {
+      return res.status(403).json({
+        message: "Forbidden: Operator cannot delete payment records",
+      });
+    }
+
     const transaction = await Transaction.findById(req.params.id);
 
     if (!transaction) {

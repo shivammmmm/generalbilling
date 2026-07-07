@@ -283,6 +283,12 @@ export const printInvoice = async (req, res) => {
 
 export const deleteInvoice = async (req, res) => {
   try {
+    if (req.user && req.user.role === "operator") {
+      return res.status(403).json({
+        message: "Forbidden: Operator cannot delete invoice records",
+      });
+    }
+
     const invoice = await Invoice.findById(req.params.id);
 
     if (!invoice) {

@@ -1,7 +1,11 @@
 import { Link } from "react-router-dom";
 import { Edit3, Eye, IndianRupee, Phone, Trash2, User } from "lucide-react";
+import { useContext } from "react";
+import { AuthContext } from "../../context/AuthContext";
 
 const CustomerTable = ({ farmers, deleteCustomer }) => {
+  const { user } = useContext(AuthContext);
+
   return (
     <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
@@ -91,13 +95,15 @@ const CustomerTable = ({ farmers, deleteCustomer }) => {
                       >
                         <Edit3 size={18} />
                       </Link>
-                      <button
-                        onClick={() => deleteCustomer(farmer._id)}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 transition hover:bg-red-600 hover:text-white"
-                        title="Delete"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      {user?.role !== "operator" && (
+                        <button
+                          onClick={() => deleteCustomer(farmer._id)}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 transition hover:bg-red-600 hover:text-white"
+                          title="Delete"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

@@ -6,9 +6,13 @@ import {
   Trash2,
   User,
 } from "lucide-react";
+import { useContext } from "react";
+import { AuthContext } from "../../context/AuthContext";
 import { formatCurrency } from "../../utils/billing";
 
 const TransactionTable = ({ transactions, deleteTransaction }) => {
+  const { user } = useContext(AuthContext);
+
   const visibleTransactions = (transactions || []).filter(
     (transaction) => transaction.type === "payment"
   );
@@ -98,14 +102,16 @@ const TransactionTable = ({ transactions, deleteTransaction }) => {
                     {item.description || "-"}
                   </td>
                   <td className="px-5 py-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() => deleteTransaction(item._id)}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 transition hover:bg-red-600 hover:text-white"
-                      title="Delete"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    {user?.role !== "operator" && (
+                      <button
+                        type="button"
+                        onClick={() => deleteTransaction(item._id)}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 transition hover:bg-red-600 hover:text-white"
+                        title="Delete"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))

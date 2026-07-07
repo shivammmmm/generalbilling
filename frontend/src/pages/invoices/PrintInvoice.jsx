@@ -36,7 +36,7 @@ const A4_PRINT_STYLE = `
 @media print {
   @page {
     size: A4 portrait;
-    margin: 10mm 12mm 10mm 12mm;
+    margin: 5mm 8mm 5mm 8mm;
   }
 
   body {
@@ -63,7 +63,7 @@ const A4_PRINT_STYLE = `
 
   #invoice-a4-wrapper th,
   #invoice-a4-wrapper td {
-    padding: 3px 4px !important;
+    padding: 2px 3px !important;
   }
 
   #invoice-a4-wrapper tr {
@@ -337,7 +337,7 @@ _Thank you for your business! 🌾_`;
 
   // spacer row height to fit A4 page perfectly
   const itemRowsCount = invoice?.products?.length || 0;
-  const spacerHeight = Math.max(80, 360 - (itemRowsCount * 30));
+  const spacerHeight = Math.max(15, 120 - (itemRowsCount * 15));
 
   // Dynamic QR Code link URL
   const payeeName = shopDetails.shopName || "Walia’s creative design & prints";

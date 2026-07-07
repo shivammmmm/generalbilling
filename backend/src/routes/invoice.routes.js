@@ -9,6 +9,8 @@ import {
    updateInvoice,
 } from "../controllers/invoice.controller.js";
 
+import authMiddleware from "../middleware/auth.middleware.js";
+
 const router = express.Router();
 
 
@@ -45,6 +47,6 @@ router.put("/:id", updateInvoice);
 
 // delete invoice
 
-router.delete("/:id", deleteInvoice);
+router.delete("/:id", authMiddleware, deleteInvoice);
 
 export default router;

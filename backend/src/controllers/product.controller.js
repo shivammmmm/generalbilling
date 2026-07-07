@@ -170,6 +170,12 @@ export const updateProduct = async (req, res) => {
 
 export const deleteProduct = async (req, res) => {
   try {
+    if (req.user && req.user.role === "operator") {
+      return res.status(403).json({
+        message: "Forbidden: Operator cannot delete product records",
+      });
+    }
+
     const product = await Product.findById(req.params.id);
 
     if (!product) {

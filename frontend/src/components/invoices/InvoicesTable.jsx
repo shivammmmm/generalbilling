@@ -139,27 +139,12 @@ const InvoiceTable = ({ invoices, deleteInvoice }) => {
                             <Eye size={18} />
                           </Link>
                           <Link
-                            to={`/invoices/edit/${invoice._id}`}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-50 text-yellow-600 transition hover:bg-yellow-600 hover:text-white"
-                            title="Edit"
-                          >
-                            <Pencil size={18} />
-                          </Link>
-                          <Link
                             to={`/invoices/print/${invoice._id}`}
                             className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white transition hover:bg-blue-600"
                             title="Print"
                           >
                             <Printer size={18} />
                           </Link>
-                          <button
-                            type="button"
-                            onClick={() => deleteInvoice(invoice._id)}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 transition hover:bg-red-600 hover:text-white"
-                            title="Delete"
-                          >
-                            <Trash2 size={18} />
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -260,27 +245,12 @@ const InvoiceTable = ({ invoices, deleteInvoice }) => {
                       <Eye size={16} />
                     </Link>
                     <Link
-                      to={`/invoices/edit/${invoice._id}`}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-50 text-yellow-700 transition active:bg-yellow-600 active:text-white"
-                      title="Edit"
-                    >
-                      <Pencil size={16} />
-                    </Link>
-                    <Link
                       to={`/invoices/print/${invoice._id}`}
                       className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-950 text-white transition active:bg-blue-600"
                       title="Print"
                     >
                       <Printer size={16} />
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => deleteInvoice(invoice._id)}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-red-50 text-red-600 transition active:bg-red-600 active:text-white"
-                      title="Delete"
-                    >
-                      <Trash2 size={16} />
-                    </button>
                   </div>
                 </div>
               </div>

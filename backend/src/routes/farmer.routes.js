@@ -9,6 +9,8 @@ import {
   searchFarmer,
 } from "../controllers/farmer.controller.js";
 
+import authMiddleware from "../middleware/auth.middleware.js";
+
 const router = express.Router();
 
 
@@ -40,6 +42,6 @@ router.put("/:id", updateFarmer);
 
 // delete farmer
 
-router.delete("/:id", deleteFarmer);
+router.delete("/:id", authMiddleware, deleteFarmer);
 
 export default router;
