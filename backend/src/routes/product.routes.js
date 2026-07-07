@@ -11,6 +11,8 @@ import {
   expiredProducts,
 } from "../controllers/product.controller.js";
 
+import authMiddleware from "../middleware/auth.middleware.js";
+
 const router = express.Router();
 
 
@@ -59,6 +61,6 @@ router.put("/:id", updateProduct);
 
 // delete product
 
-router.delete("/:id", deleteProduct);
+router.delete("/:id", authMiddleware, deleteProduct);
 
 export default router;

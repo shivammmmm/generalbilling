@@ -1,7 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import LicenseKey from "./pages/auth/LicenseKey";
 import MainLayout from "./layouts/MainLayout";
-import LicenseRoute from "./routes/LicenseRoute";
 import Dashboard from "./pages/dashboard/Dashboard";
 import Customers from "./pages/farmers/Farmers";
 import AddCustomer from "./pages/farmers/AddFarmer";
@@ -18,10 +16,14 @@ import CreditTransaction from "./pages/transactions/CreditTransaction";
 import Invoices from "./pages/invoices/Invoices";
 import InvoiceDetails from "./pages/invoices/InvoiceDetails";
 import PrintInvoice from "./pages/invoices/PrintInvoice";
+import EditInvoice from "./pages/invoices/EditInvoice";
 import Billing from "./pages/billing/Billing";
 import Reports from "./pages/reports/Reports";
 import Users from "./pages/users/Users";
 import Settings from "./pages/settings/Settings";
+
+import Login from "./pages/auth/Login";
+import ProtectedRoute from "./routes/ProtectedRoute";
 
 const protectedRoutes = [
   { path: "/dashboard", element: <Dashboard /> },
@@ -39,6 +41,7 @@ const protectedRoutes = [
   { path: "/invoices", element: <Invoices /> },
   { path: "/invoices/create", element: <Navigate to="/billing" replace /> },
   { path: "/invoices/print/:id", element: <PrintInvoice /> },
+  { path: "/invoices/edit/:id", element: <EditInvoice /> },
   { path: "/invoices/:id", element: <InvoiceDetails /> },
   { path: "/transactions", element: <Transactions /> },
   { path: "/transactions/payment", element: <PaymentTransaction /> },
@@ -52,25 +55,21 @@ const App = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Seedha activate page pe redirect */}
-        <Route path="/" element={<Navigate to="/activate" replace />} />
+        {/* Redirect root to login page directly */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
 
-        {/* License Key Activation Screen */}
-        <Route path="/activate" element={<LicenseKey />} />
+        {/* Login route */}
+        <Route path="/login" element={<Login />} />
 
-        {/* Old login/register routes redirect to activate */}
-        <Route path="/login" element={<Navigate to="/activate" replace />} />
-        <Route path="/register" element={<Navigate to="/activate" replace />} />
-
-        {/* Protected routes — sirf license key se */}
+        {/* Protected routes — require login */}
         {protectedRoutes.map((route) => (
           <Route
             key={route.path}
             path={route.path}
             element={
-              <LicenseRoute>
+              <ProtectedRoute>
                 <MainLayout>{route.element}</MainLayout>
-              </LicenseRoute>
+              </ProtectedRoute>
             }
           />
         ))}

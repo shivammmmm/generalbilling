@@ -40,6 +40,11 @@ export const getSettings = async (req, res) => {
 
 export const updateSettings = async (req, res) => {
   try {
+    if (!req.user || req.user.role !== "admin") {
+      return res.status(403).json({
+        message: "Forbidden: Only Admin can update settings",
+      });
+    }
 
     let settings =
       await Settings.findOne();

@@ -52,17 +52,7 @@ const Invoices = () => {
     }
   };
 
-  const deleteInvoice = async (id) => {
-    if (!window.confirm("Delete this invoice record?")) return;
 
-    try {
-      await API.delete(`/invoices/${id}`);
-      toast.success("Invoice deleted");
-      getInvoices();
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to delete invoice");
-    }
-  };
 
   useEffect(() => {
     getInvoices();
@@ -197,7 +187,7 @@ const Invoices = () => {
           Loading invoices...
         </div>
       ) : (
-        <InvoiceTable invoices={filteredInvoices} deleteInvoice={deleteInvoice} />
+        <InvoiceTable invoices={filteredInvoices} />
       )}
     </div>
   );

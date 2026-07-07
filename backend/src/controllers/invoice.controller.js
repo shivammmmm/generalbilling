@@ -163,6 +163,8 @@ export const createInvoice = async (req, res) => {
       grandTotal,
 
       paymentStatus,
+
+      createdAt: req.body.invoiceDate ? new Date(req.body.invoiceDate) : undefined,
     });
 
     // CREDIT BILLING → create transaction
@@ -281,6 +283,12 @@ export const printInvoice = async (req, res) => {
 
 export const deleteInvoice = async (req, res) => {
   try {
+    if (req.user && req.user.role === "operator") {
+      return res.status(403).json({
+        message: "Forbidden: Operator cannot delete invoice records",
+      });
+    }
+
     const invoice = await Invoice.findById(req.params.id);
 
     if (!invoice) {
@@ -312,6 +320,163 @@ export const deleteInvoice = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Invoice deleted",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
+// ================= UPDATE INVOICE =================
+
+export const updateInvoice = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      farmerId,
+      billingType = "credit",
+      rateType,
+      documentType = "gst_invoice",
+      products = [],
+      invoiceDate,
+    } = req.body;
+
+    const invoice = await Invoice.findById(id);
+    if (!invoice) {
+      return res.status(404).json({
+        message: "Invoice not found",
+      });
+    }
+
+    // 1. Revert previous farmer due & transaction
+    if (invoice.billingType === "credit") {
+      const oldFarmer = await Farmer.findById(invoice.farmer);
+      if (oldFarmer) {
+        oldFarmer.dueAmount = Math.max(0, oldFarmer.dueAmount - Number(invoice.grandTotal || 0));
+        await oldFarmer.save();
+      }
+
+      await Transaction.deleteOne({
+        farmer: invoice.farmer,
+        type: "credit",
+        description: `Invoice ${invoice.invoiceNumber}`,
+      });
+    }
+
+    // 2. Fetch new / same customer details
+    const farmer = await Farmer.findById(farmerId || invoice.farmer);
+    if (!farmer) {
+      return res.status(404).json({
+        message: "Customer not found",
+      });
+    }
+
+    const activeRateType = rateType || farmer.defaultRateType || "Rate A";
+    const gstEnabled = documentType === "gst_invoice";
+
+    let subTotal = 0;
+    let totalGST = 0;
+    const invoiceProducts = [];
+
+    // 3. Process products list
+    for (const item of products) {
+      const product = await Product.findById(item.product);
+      if (!product) {
+        return res.status(404).json({
+          message: "Product not found",
+        });
+      }
+
+      let selectedRate = 0;
+      if (activeRateType === "Rate A") {
+        selectedRate = product.cashRate;
+      } else if (activeRateType === "Rate B") {
+        selectedRate = product.creditRate;
+      } else if (activeRateType === "Rate C") {
+        selectedRate = product.wholesaleRate;
+      } else {
+        selectedRate = product.cashRate;
+      }
+
+      if (item.selectedRate !== undefined && item.selectedRate !== "") {
+        selectedRate = Number(item.selectedRate);
+      }
+
+      const quantity = Number(item.quantity) || 1;
+      const length = Number(item.length) || 0;
+      const width = Number(item.width) || 0;
+      const sqFt = length * width;
+
+      const gstRate = gstEnabled
+        ? (item.gstRate !== undefined && item.gstRate !== ""
+            ? Number(item.gstRate)
+            : product.gstRate || 0)
+        : 0;
+
+      const itemTotal = sqFt * selectedRate * quantity;
+      const gstAmount = (itemTotal * gstRate) / 100;
+      const finalAmount = itemTotal + gstAmount;
+
+      subTotal += itemTotal;
+      totalGST += gstAmount;
+
+      invoiceProducts.push({
+        product: product._id,
+        hsnCode: product.hsnCode || "",
+        quantity,
+        length,
+        width,
+        sqFt,
+        selectedRate,
+        gstRate,
+        baseAmount: itemTotal,
+        gstAmount,
+        totalAmount: finalAmount,
+      });
+    }
+
+    const grandTotal = subTotal + totalGST;
+
+    let paymentStatus = "paid";
+    if (billingType === "credit") {
+      paymentStatus = "pending";
+    }
+
+    // 4. Apply new farmer due & transaction
+    if (billingType === "credit") {
+      farmer.dueAmount += grandTotal;
+      await farmer.save();
+
+      await Transaction.create({
+        farmer: farmer._id,
+        type: "credit",
+        amount: grandTotal,
+        description: `Invoice ${invoice.invoiceNumber}`,
+      });
+    }
+
+    // 5. Update database record
+    invoice.farmer = farmer._id;
+    invoice.billingType = billingType;
+    invoice.rateType = activeRateType;
+    invoice.documentType = documentType;
+    invoice.gstEnabled = gstEnabled;
+    invoice.products = invoiceProducts;
+    invoice.subTotal = subTotal;
+    invoice.totalGST = totalGST;
+    invoice.grandTotal = grandTotal;
+    invoice.paymentStatus = paymentStatus;
+    if (invoiceDate) {
+      invoice.createdAt = new Date(invoiceDate);
+    }
+
+    await invoice.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Invoice Updated Successfully",
+      invoice,
     });
   } catch (error) {
     res.status(500).json({

@@ -5,18 +5,20 @@ import {
   updateSettings,
 } from "../controllers/settings.controller.js";
 
+import authMiddleware from "../middleware/auth.middleware.js";
+
 const router = express.Router();
 
 
 
 // get settings
 
-router.get("/", getSettings);
+router.get("/", authMiddleware, getSettings);
 
 
 
 // update settings
 
-router.put("/", updateSettings);
+router.put("/", authMiddleware, updateSettings);
 
 export default router;

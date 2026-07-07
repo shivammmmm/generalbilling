@@ -137,6 +137,12 @@ export const updateFarmer = async (req, res) => {
 
 export const deleteFarmer = async (req, res) => {
   try {
+    if (req.user && req.user.role === "operator") {
+      return res.status(403).json({
+        message: "Forbidden: Operator cannot delete customer records",
+      });
+    }
+
     const farmer = await Farmer.findById(req.params.id);
 
     if (!farmer) {

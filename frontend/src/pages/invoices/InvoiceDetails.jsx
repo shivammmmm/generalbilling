@@ -1,19 +1,28 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Printer, MessageCircle, FileCheck, FileText } from "lucide-react";
+import { useEffect, useState, useContext } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, Printer, MessageCircle, FileCheck, FileText, Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
 import API from "../../services/api";
+import { AuthContext } from "../../context/AuthContext";
 import { formatCurrency, toNumber } from "../../utils/billing";
 
 const InvoiceDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
-    const getInvoice = async () => {
+    const getInvoiceAndSettings = async () => {
       try {
-        const { data } = await API.get(`/invoices/${id}`);
-        setInvoice(data.invoice);
+        const [invoiceRes, settingsRes] = await Promise.all([
+          API.get(`/invoices/${id}`),
+          API.get("/settings"),
+        ]);
+        setInvoice(invoiceRes.data.invoice);
+        setSettings(settingsRes.data.settings);
       } catch (error) {
         console.error(error);
       } finally {
@@ -21,7 +30,7 @@ const InvoiceDetails = () => {
       }
     };
 
-    getInvoice();
+    getInvoiceAndSettings();
   }, [id]);
 
   // ✅ WhatsApp Send (Free — wa.me link)
@@ -51,6 +60,22 @@ const InvoiceDetails = () => {
     const msg = `🧾 *${docLabel} #${invoice?.invoiceNumber}*\n📅 Date: ${date}\n👤 Customer: ${invoice?.farmer?.name}\n📍 Area: ${invoice?.farmer?.village}\n\n📦 *Items:*\n${productLines}\n\n💰 Subtotal: ₹${Math.round(toNumber(invoice?.subTotal)).toLocaleString("en-IN")}\n${gstLine}✅ *Grand Total: ₹${Math.round(toNumber(invoice?.grandTotal)).toLocaleString("en-IN")}*\n\n_Thank you! 🌾_`;
 
     window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
+  const handleDelete = async () => {
+    if (!invoice) return;
+    const isGst = invoice?.documentType !== "order" && invoice?.gstEnabled !== false;
+    const docLabel = isGst ? "Invoice" : "Order";
+
+    if (!window.confirm(`Delete this ${docLabel.toLowerCase()} record?`)) return;
+
+    try {
+      await API.delete(`/invoices/${id}`);
+      toast.success(`${docLabel} deleted`);
+      navigate("/invoices");
+    } catch (error) {
+      toast.error(error.response?.data?.message || `Failed to delete ${docLabel.toLowerCase()}`);
+    }
   };
 
   if (loading) {
@@ -130,10 +155,46 @@ const InvoiceDetails = () => {
             <Printer size={18} />
             Print {docLabel}
           </Link>
+
+          {/* Delete Invoice Button (Admin Only) */}
+          {user?.role !== "operator" && (
+            <button
+              onClick={handleDelete}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 py-3 font-black text-white shadow-lg shadow-red-200 hover:bg-red-700"
+            >
+              <Trash2 size={18} />
+              Delete {docLabel}
+            </button>
+          )}
         </div>
       </div>
 
-      <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
+      <section className={`grid grid-cols-1 gap-5 ${isGst && settings ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+        {isGst && settings && (
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-widest text-slate-500">
+              Company Details
+            </p>
+            <h2 className="mt-3 text-xl font-black text-slate-950">
+              {settings.shopName || "Company Name"}
+            </h2>
+            <p className="mt-1 text-sm font-semibold text-slate-600">
+              {settings.shopAddress || "Company Address"}
+            </p>
+            <p className="text-sm font-semibold text-slate-600">
+              Phone: {settings.shopMobile || "-"}
+            </p>
+            <p className="text-sm font-semibold text-slate-600">
+              Email: {settings.shopEmail || "-"}
+            </p>
+            {settings.gstNumber && (
+              <p className="mt-2 text-xs font-black text-blue-600 uppercase tracking-widest">
+                GSTIN: {settings.gstNumber}
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-black uppercase tracking-widest text-slate-500">
             Customer

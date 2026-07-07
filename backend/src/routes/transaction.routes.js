@@ -10,6 +10,8 @@ import {
   deleteTransaction,
 } from "../controllers/transaction.controller.js";
 
+import authMiddleware from "../middleware/auth.middleware.js";
+
 const router = express.Router();
 
 
@@ -52,6 +54,6 @@ router.get("/ledger/:id", getFarmerLedger);
 
 // delete transaction
 
-router.delete("/:id", deleteTransaction);
+router.delete("/:id", authMiddleware, deleteTransaction);
 
 export default router;

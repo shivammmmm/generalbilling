@@ -1,12 +1,15 @@
 import express from "express";
 
 import {
-  createInvoice,
-  getAllInvoices,
-  getSingleInvoice,
-  printInvoice,
-  deleteInvoice,
+   createInvoice,
+   getAllInvoices,
+   getSingleInvoice,
+   printInvoice,
+   deleteInvoice,
+   updateInvoice,
 } from "../controllers/invoice.controller.js";
+
+import authMiddleware from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -36,8 +39,14 @@ router.get("/print/:id", printInvoice);
 
 
 
+// update invoice
+
+router.put("/:id", updateInvoice);
+
+
+
 // delete invoice
 
-router.delete("/:id", deleteInvoice);
+router.delete("/:id", authMiddleware, deleteInvoice);
 
 export default router;

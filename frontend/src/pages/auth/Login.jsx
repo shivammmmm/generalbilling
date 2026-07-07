@@ -118,18 +118,7 @@ const Login = () => {
             </button>
           </form>
 
-          <div className="mt-10 pt-8 border-t border-slate-100 text-center">
-            <p className="text-xs font-bold text-slate-600 uppercase tracking-widest">
-              No authorized identity?
-              <button
-                type="button"
-                onClick={() => navigate("/register")}
-                className="ml-3 text-blue-600 hover:text-blue-700 transition-colors font-black underline decoration-2 underline-offset-4"
-              >
-                Request Registration
-              </button>
-            </p>
-          </div>
+
         </div>
 
         <p className="mt-12 text-center text-[10px] font-black text-slate-600 uppercase tracking-[0.3em]">

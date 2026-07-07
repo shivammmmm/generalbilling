@@ -7,10 +7,36 @@ import { numberToWords } from "../../utils/numberToWords";
 
 // A4 Print CSS injected into document head
 const A4_PRINT_STYLE = `
+.inline-edit {
+  border: none !important;
+  background: transparent !important;
+  width: 100% !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  color: inherit !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  resize: none !important;
+}
+
+@media screen {
+  .inline-edit:hover {
+    background-color: #f1f5f9 !important;
+    cursor: pointer;
+  }
+  .inline-edit:focus {
+    background-color: #f1f5f9 !important;
+    border-bottom: 1px dashed #3b82f6 !important;
+  }
+}
+
 @media print {
   @page {
     size: A4 portrait;
-    margin: 10mm 12mm 10mm 12mm;
+    margin: 5mm 8mm 5mm 8mm;
   }
 
   body {
@@ -37,7 +63,7 @@ const A4_PRINT_STYLE = `
 
   #invoice-a4-wrapper th,
   #invoice-a4-wrapper td {
-    padding: 3px 4px !important;
+    padding: 2px 3px !important;
   }
 
   #invoice-a4-wrapper tr {
@@ -53,6 +79,35 @@ const PrintInvoice = () => {
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Inline-editable states
+  const [shopDetails, setShopDetails] = useState({
+    shopName: "",
+    shopAddress: "",
+    shopMobile: "",
+    shopEmail: "",
+    gstNumber: "",
+    accountHolderName: "",
+    bankName: "",
+    bankBranch: "",
+    accountNumber: "",
+    ifscCode: "",
+    upiId: "",
+  });
+
+  const [buyerDetails, setBuyerDetails] = useState({
+    name: "",
+    address: "",
+    mobileNumber: "",
+    gstNumber: "",
+  });
+
+  const [termsList, setTermsList] = useState([
+    "Goods once sold will not be taken back or exchanged.",
+    "Bills not paid due date will attract 24% interest.",
+    "All disputes subject to Jurisdication only.",
+    "Prescribed Sales Tax declaration will be given.",
+  ]);
 
   const [printOptions, setPrintOptions] = useState({
     delivery: "",
@@ -96,14 +151,63 @@ const PrintInvoice = () => {
   }, [id]);
 
   useEffect(() => {
+    if (settings) {
+      setShopDetails({
+        shopName: settings.shopName || "Walia’s creative design & prints",
+        shopAddress: settings.shopAddress || "Budhapara branch Raipur (C.G.)",
+        shopMobile: settings.shopMobile || "",
+        shopEmail: settings.shopEmail || "",
+        gstNumber: settings.gstNumber || "",
+        accountHolderName: settings.accountHolderName || "Walia’s creative design & prints",
+        bankName: settings.bankName || "Punjab national bank",
+        bankBranch: settings.bankBranch || "Budhapara branch Raipur (C.G.)",
+        accountNumber: settings.accountNumber || "0926050051323",
+        ifscCode: settings.ifscCode || "PUNB0092620",
+        upiId: settings.upiId || "0926050051323@pnb",
+      });
+    }
+  }, [settings]);
+
+  useEffect(() => {
     if (invoice) {
+      setBuyerDetails({
+        name: invoice.farmer?.name || "",
+        address: ((invoice.farmer?.address || "") + " " + (invoice.farmer?.village || "")).trim(),
+        mobileNumber: invoice.farmer?.mobileNumber || "",
+        gstNumber: invoice.farmer?.gstNumber || "",
+      });
+
       setPrintOptions((prev) => ({
         ...prev,
         termsOfPayment: invoice.billingType === "cash" ? "CASH" : "CREDIT",
         dispatchDated: formatDate(invoice.createdAt),
       }));
+
+      const interestRate = settings.monthlyInterestRate * 12 || 24;
+      setTermsList([
+        "Goods once sold will not be taken back or exchanged.",
+        `Bills not paid due date will attract ${interestRate}% interest.`,
+        "All disputes subject to Jurisdication only.",
+        "Prescribed Sales Tax declaration will be given.",
+      ]);
     }
-  }, [invoice]);
+  }, [invoice, settings]);
+
+  const handleShopChange = (field, value) => {
+    setShopDetails((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleBuyerChange = (field, value) => {
+    setBuyerDetails((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleTermChange = (index, value) => {
+    setTermsList((prev) => {
+      const next = [...prev];
+      next[index] = value;
+      return next;
+    });
+  };
 
   // ── Print via browser dialog ──
   const handlePrint = () => {
@@ -220,10 +324,6 @@ _Thank you for your business! 🌾_`;
 
   const isGst = invoice?.documentType !== "order" && invoice?.gstEnabled !== false;
   const docLabel = isGst ? "Invoice" : "Order";
-  const shopName = settings?.shopName || "Vaibhav Stone Industries";
-  const shopAddress = settings?.shopAddress || "Village Basin Teh.Rajim, Dist- Gariyaband (C.G.) PIN- 493992";
-  const shopMobile = settings?.shopMobile || "7691911000";
-  const gstNumber = settings?.gstNumber || "";
 
   // GST breakup: CGST + SGST (50/50 split)
   const totalGST = toNumber(invoice?.totalGST);
@@ -237,7 +337,13 @@ _Thank you for your business! 🌾_`;
 
   // spacer row height to fit A4 page perfectly
   const itemRowsCount = invoice?.products?.length || 0;
-  const spacerHeight = Math.max(80, 360 - (itemRowsCount * 30));
+  const spacerHeight = Math.max(15, 120 - (itemRowsCount * 15));
+
+  // Dynamic QR Code link URL
+  const payeeName = shopDetails.shopName || "Walia’s creative design & prints";
+  const upiId = shopDetails.upiId || "0926050051323@pnb";
+  const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${grandTotalRounded}&tn=Invoice%20${invoice?.invoiceNumber}&cu=INR`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(upiUrl)}`;
 
   return (
     <div className="space-y-6 bg-slate-100 p-4 sm:p-6">
@@ -379,23 +485,28 @@ _Thank you for your business! 🌾_`;
             />
           </div>
         </div>
+        <p className="mt-3 text-xs font-bold text-slate-500">
+          💡 Click directly on the Company Name, Address, Bank details, UPI ID, or Terms below in the preview to edit them dynamically!
+        </p>
       </div>
 
       {/* ── A4 Invoice Content ── */}
-      <div
-        id="invoice-a4-wrapper"
-        ref={printRef}
-        style={{
-          fontFamily: "'Segoe UI', Arial, sans-serif",
-          border: "1.5px solid black",
-          margin: "0 auto",
-          padding: "0",
-          backgroundColor: "#fff",
-          color: "#000",
-          boxSizing: "border-box"
-        }}
-        className="mx-auto w-full max-w-[210mm] shadow-lg print:max-w-none print:shadow-none"
-      >
+      <div className="w-full overflow-x-auto pb-4">
+        <div
+          id="invoice-a4-wrapper"
+          ref={printRef}
+          style={{
+            fontFamily: "'Segoe UI', Arial, sans-serif",
+            border: "1.5px solid black",
+            margin: "0 auto",
+            padding: "0",
+            backgroundColor: "#fff",
+            color: "#000",
+            boxSizing: "border-box",
+            minWidth: "750px"
+          }}
+          className="mx-auto w-full max-w-[210mm] shadow-lg print:max-w-none print:shadow-none print:min-w-0"
+        >
         {/* Title Header */}
         <div style={{ textAlign: "center", padding: "4px 0", borderBottom: "1.5px solid black" }}>
           <span style={{ fontSize: "13px", fontWeight: "bold", color: "#0000FF", letterSpacing: "1.5px" }}>
@@ -409,26 +520,51 @@ _Thank you for your business! 🌾_`;
           <div style={{ borderRight: "1.5px solid black", display: "flex", flexDirection: "column" }}>
             {/* Shop Details */}
             <div style={{ padding: "8px", minHeight: "135px" }}>
-              <h2 style={{ fontSize: "15px", fontWeight: "900", margin: "0 0 4px 0", letterSpacing: "0.5px" }}>
-                {shopName.toUpperCase()}
-              </h2>
-              <p style={{ fontSize: "9.5px", fontWeight: "bold", margin: "2px 0", lineHeight: "1.3" }}>
-                {shopAddress.toUpperCase()}
-              </p>
-              {shopMobile && (
-                <p style={{ fontSize: "9.5px", fontWeight: "bold", margin: "2px 0" }}>
-                  Phone : {shopMobile}
-                </p>
-              )}
-              {settings.shopEmail && (
-                <p style={{ fontSize: "9.5px", fontWeight: "bold", margin: "2px 0" }}>
-                  E-Mail : {settings.shopEmail}
-                </p>
-              )}
-              {isGst && gstNumber && (
-                <p style={{ fontSize: "9.5px", fontWeight: "bold", margin: "2px 0" }}>
-                  GST No : {gstNumber}
-                </p>
+              <input
+                type="text"
+                value={shopDetails.shopName}
+                onChange={(e) => handleShopChange("shopName", e.target.value)}
+                className="inline-edit"
+                style={{ fontSize: "15px", fontWeight: "900", textTransform: "uppercase", letterSpacing: "0.5px" }}
+              />
+              <textarea
+                rows="2"
+                value={shopDetails.shopAddress}
+                onChange={(e) => handleShopChange("shopAddress", e.target.value)}
+                className="inline-edit mt-1"
+                style={{ fontSize: "9.5px", fontWeight: "bold", textTransform: "uppercase", lineHeight: "1.3" }}
+              />
+              <div style={{ display: "flex", gap: "4px", fontSize: "9.5px", fontWeight: "bold", marginTop: "2px" }}>
+                <span>Phone:</span>
+                <input
+                  type="text"
+                  value={shopDetails.shopMobile}
+                  onChange={(e) => handleShopChange("shopMobile", e.target.value)}
+                  className="inline-edit"
+                  style={{ width: "150px" }}
+                />
+              </div>
+              <div style={{ display: "flex", gap: "4px", fontSize: "9.5px", fontWeight: "bold" }}>
+                <span>E-Mail:</span>
+                <input
+                  type="text"
+                  value={shopDetails.shopEmail}
+                  onChange={(e) => handleShopChange("shopEmail", e.target.value)}
+                  className="inline-edit"
+                  style={{ width: "200px" }}
+                />
+              </div>
+              {isGst && (
+                <div style={{ display: "flex", gap: "4px", fontSize: "9.5px", fontWeight: "bold" }}>
+                  <span>GST No:</span>
+                  <input
+                    type="text"
+                    value={shopDetails.gstNumber}
+                    onChange={(e) => handleShopChange("gstNumber", e.target.value)}
+                    className="inline-edit"
+                    style={{ width: "180px" }}
+                  />
+                </div>
               )}
             </div>
 
@@ -436,24 +572,42 @@ _Thank you for your business! 🌾_`;
             <div style={{ padding: "8px", borderTop: "1.5px solid black", minHeight: "95px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
               <div>
                 <p style={{ fontSize: "8.5px", margin: "0 0 2px 0", color: "#555" }}>Buyer details:</p>
-                <h3 style={{ fontSize: "11px", fontWeight: "bold", margin: "0 0 2px 0" }}>
-                  {invoice?.farmer?.name?.toUpperCase()}
-                </h3>
-                {invoice?.farmer?.address || invoice?.farmer?.village ? (
-                  <p style={{ fontSize: "9.5px", margin: "2px 0", lineHeight: "1.3" }}>
-                    {((invoice?.farmer?.address || "") + " " + (invoice?.farmer?.village || "")).trim().toUpperCase()}
-                  </p>
-                ) : null}
-                {invoice?.farmer?.mobileNumber && (
-                  <p style={{ fontSize: "9.5px", margin: "2px 0" }}>
-                    Phone: {invoice?.farmer?.mobileNumber}
-                  </p>
-                )}
+                <input
+                  type="text"
+                  value={buyerDetails.name}
+                  onChange={(e) => handleBuyerChange("name", e.target.value)}
+                  className="inline-edit"
+                  style={{ fontSize: "11px", fontWeight: "bold", textTransform: "uppercase" }}
+                />
+                <textarea
+                  rows="2"
+                  value={buyerDetails.address}
+                  onChange={(e) => handleBuyerChange("address", e.target.value)}
+                  className="inline-edit mt-1"
+                  style={{ fontSize: "9.5px", textTransform: "uppercase", lineHeight: "1.3" }}
+                />
+                <div style={{ display: "flex", gap: "4px", fontSize: "9.5px", marginTop: "2px" }}>
+                  <span>Phone:</span>
+                  <input
+                    type="text"
+                    value={buyerDetails.mobileNumber}
+                    onChange={(e) => handleBuyerChange("mobileNumber", e.target.value)}
+                    className="inline-edit"
+                    style={{ width: "150px" }}
+                  />
+                </div>
               </div>
-              {isGst && invoice?.farmer?.gstNumber && (
-                <p style={{ fontSize: "9.5px", fontWeight: "bold", margin: "2px 0" }}>
-                  GST NO : {invoice?.farmer?.gstNumber}
-                </p>
+              {isGst && (
+                <div style={{ display: "flex", gap: "4px", fontSize: "9.5px", fontWeight: "bold" }}>
+                  <span>GST NO:</span>
+                  <input
+                    type="text"
+                    value={buyerDetails.gstNumber}
+                    onChange={(e) => handleBuyerChange("gstNumber", e.target.value)}
+                    className="inline-edit"
+                    style={{ width: "180px" }}
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -609,22 +763,90 @@ _Thank you for your business! 🌾_`;
         <div style={{ display: "grid", gridTemplateColumns: "60% 40%", padding: "6px 0", borderBottom: "1.5px solid black" }}>
           {/* Left Column: Bank Details & Terms */}
           <div style={{ paddingLeft: "8px", paddingRight: "8px" }}>
-            {/* Bank Details */}
-            <div style={{ fontSize: "8.5px", fontWeight: "bold", marginBottom: "8px", lineHeight: "1.4" }}>
-              <div>BANK NAME - {settings.bankName?.toUpperCase() || "STATE BANK OF INDIA"}</div>
-              {settings.bankBranch && <div>BRANCH - {settings.bankBranch.toUpperCase()}</div>}
-              <div>ACCOUNT NO. - {settings.accountNumber || "44656550938"}</div>
-              <div>BRANCH IFSC - {settings.ifscCode || "SBIN0012128"}</div>
+            {/* Bank Details & QR Code Grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "70% 30%", marginBottom: "8px", alignItems: "center" }}>
+              <div style={{ fontSize: "8.5px", fontWeight: "bold", lineHeight: "1.4" }}>
+                <div style={{ display: "flex", gap: "4px" }}>
+                  <span>A/C NAME -</span>
+                  <input
+                    type="text"
+                    value={shopDetails.accountHolderName}
+                    onChange={(e) => handleShopChange("accountHolderName", e.target.value)}
+                    className="inline-edit"
+                    style={{ textTransform: "uppercase" }}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: "4px" }}>
+                  <span>BANK NAME -</span>
+                  <input
+                    type="text"
+                    value={shopDetails.bankName}
+                    onChange={(e) => handleShopChange("bankName", e.target.value)}
+                    className="inline-edit"
+                    style={{ textTransform: "uppercase" }}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: "4px" }}>
+                  <span>BRANCH -</span>
+                  <input
+                    type="text"
+                    value={shopDetails.bankBranch}
+                    onChange={(e) => handleShopChange("bankBranch", e.target.value)}
+                    className="inline-edit"
+                    style={{ textTransform: "uppercase" }}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: "4px" }}>
+                  <span>ACCOUNT NO. -</span>
+                  <input
+                    type="text"
+                    value={shopDetails.accountNumber}
+                    onChange={(e) => handleShopChange("accountNumber", e.target.value)}
+                    className="inline-edit"
+                  />
+                </div>
+                <div style={{ display: "flex", gap: "4px" }}>
+                  <span>BRANCH IFSC -</span>
+                  <input
+                    type="text"
+                    value={shopDetails.ifscCode}
+                    onChange={(e) => handleShopChange("ifscCode", e.target.value)}
+                    className="inline-edit"
+                  />
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                <img
+                  src={qrCodeUrl}
+                  alt="Scan to Pay"
+                  style={{ width: "70px", height: "70px", border: "1.5px solid black", padding: "1px", background: "white" }}
+                />
+                <span style={{ fontSize: "7px", fontWeight: "bold", marginTop: "2px" }}>SCAN TO PAY</span>
+                <input
+                  type="text"
+                  value={shopDetails.upiId}
+                  onChange={(e) => handleShopChange("upiId", e.target.value)}
+                  className="inline-edit print:hidden"
+                  placeholder="UPI ID"
+                  style={{ fontSize: "7.5px", fontWeight: "bold", textAlign: "center", width: "95px", marginTop: "3px", borderBottom: "1px dotted #ccc" }}
+                />
+              </div>
             </div>
 
             {/* Terms & Conditions */}
             <div style={{ fontSize: "8.5px" }}>
               <span style={{ textDecoration: "underline", fontWeight: "bold", fontStyle: "italic" }}>Terms & Conditions</span>
               <ol style={{ margin: "2px 0 0 0", paddingLeft: "14px", lineHeight: "1.3", listStyleType: "decimal" }}>
-                <li>Goods once sold will not be taken back or exchanged.</li>
-                <li>Bills not paid due date will attract {settings.monthlyInterestRate * 12 || 24}% interest.</li>
-                <li>All disputes subject to Jurisdication only.</li>
-                <li>Prescribed Sales Tax declaration will be given.</li>
+                {termsList.map((term, index) => (
+                  <li key={index}>
+                    <input
+                      type="text"
+                      value={term}
+                      onChange={(e) => handleTermChange(index, e.target.value)}
+                      className="inline-edit"
+                    />
+                  </li>
+                ))}
               </ol>
             </div>
           </div>
@@ -677,8 +899,9 @@ _Thank you for your business! 🌾_`;
           {/* Signature */}
           <div style={{ width: "40%", textAlign: "right", fontSize: "8.5px" }}>
             <span style={{ display: "block", marginBottom: "35px", fontStyle: "italic" }}>Authorised signatory</span>
-            <span style={{ fontWeight: "bold" }}>For {(settings.shopName || "VAIBHAV STONE INDUSTRIES").toUpperCase()}</span>
+            <span style={{ fontWeight: "bold" }}>For {shopDetails.shopName.toUpperCase()}</span>
           </div>
+        </div>
         </div>
       </div>
     </div>

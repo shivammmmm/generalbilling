@@ -1,9 +1,16 @@
 import { Bell, Search, User, ChevronDown } from "lucide-react";
 import { useContext } from "react";
+import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
 
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <div className="glass-panel px-4 py-4 sm:px-6 sm:py-5 rounded-[2rem] flex flex-col gap-4 md:flex-row md:justify-between md:items-center shadow-premium sticky top-6 z-40">
@@ -36,7 +43,7 @@ const Navbar = () => {
 
             <div className="absolute top-full right-0 mt-3 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all translate-y-2 group-hover:translate-y-0">
               <button 
-                onClick={logout}
+                onClick={handleLogout}
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
               >
                 Sign Out
