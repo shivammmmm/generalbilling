@@ -1,76 +1,439 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Printer, Download, MessageCircle } from "lucide-react";
+import { ArrowLeft, Download, MessageCircle, Pencil, Printer } from "lucide-react";
 import API from "../../services/api";
 import { toNumber } from "../../utils/billing";
 import { numberToWords } from "../../utils/numberToWords";
 
-// A4 Print CSS injected into document head
+const PAGE_ITEM_LIMIT = 14;
+
+const FALLBACK_SHOP = {
+  shopName: "Walia's Creative",
+  businessLine:
+    "Eco Solvent Print, Flex Banners, Hoardings, Glow Signs, Inshop Branding, Acrylic LED Boards.",
+  shopAddress: "Kelkar Para, Station Road, Raipur (C.G.)",
+  shopMobile: "+91 9981111199",
+  shopEmail: "waliascreative@gmail.com",
+  gstNumber: "22AEYPA8034J1ZC",
+  accountHolderName: "Walia's Creative Design & Prints",
+  bankName: "Punjab National Bank",
+  bankBranch: "Budhapara Branch, Raipur (C.G.)",
+  accountNumber: "0926050051323",
+  ifscCode: "PUNB0092620",
+  paymentUpiId: "ahluwaliaharmansingh@okicici",
+};
+
+const ORDER_PAYMENT_QR = "/payment-qr-crop.jpeg";
+
 const A4_PRINT_STYLE = `
-.inline-edit {
-  border: none !important;
-  background: transparent !important;
-  width: 100% !important;
-  font-family: inherit !important;
-  font-size: inherit !important;
-  font-weight: inherit !important;
-  color: inherit !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  outline: none !important;
-  box-shadow: none !important;
-  resize: none !important;
+.invoice-shell {
+  background: #eef2f7;
 }
 
-@media screen {
-  .inline-edit:hover {
-    background-color: #f1f5f9 !important;
-    cursor: pointer;
-  }
-  .inline-edit:focus {
-    background-color: #f1f5f9 !important;
-    border-bottom: 1px dashed #3b82f6 !important;
-  }
+.invoice-scroll {
+  width: 100%;
+  overflow-x: auto;
+  padding: 0 0 16px;
+}
+
+.invoice-document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  min-width: 210mm;
+}
+
+.invoice-page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 8mm;
+  box-sizing: border-box;
+  background: #ffffff;
+  color: #111827;
+  font-family: "Segoe UI", Arial, sans-serif;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+  page-break-after: always;
+  break-after: page;
+}
+
+.invoice-page:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+
+.invoice-sheet {
+  min-height: 281mm;
+  border: 1.4px solid #111827;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.invoice-document.pdf-render {
+  gap: 0;
+}
+
+.invoice-document.pdf-render .invoice-page {
+  box-shadow: none;
+}
+
+.invoice-top-line {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1.2px solid #111827;
+  padding: 5px 9px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.invoice-title {
+  text-align: center;
+  padding: 9px 12px 6px;
+}
+
+.invoice-title h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.invoice-title p {
+  margin: 5px 0 0;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.invoice-business-line {
+  border-top: 1.2px solid #111827;
+  border-bottom: 1.2px solid #111827;
+  background: #f3f6fb;
+  padding: 5px 10px;
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.invoice-contact-line {
+  padding: 5px 12px;
+  text-align: center;
+  border-bottom: 1.2px solid #111827;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.invoice-party-grid {
+  display: grid;
+  grid-template-columns: 58% 42%;
+  border-bottom: 1.2px solid #111827;
+  font-size: 10.5px;
+}
+
+.invoice-buyer-box,
+.invoice-meta-box {
+  min-height: 28mm;
+  padding: 8px 9px;
+}
+
+.invoice-buyer-box {
+  border-right: 1.2px solid #111827;
+}
+
+.invoice-buyer-name {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.invoice-muted-label {
+  color: #475569;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.invoice-meta-row {
+  display: grid;
+  grid-template-columns: 45% 55%;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid #d7dde7;
+}
+
+.invoice-meta-row:last-child {
+  border-bottom: 0;
+}
+
+.invoice-page-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 9.3px;
+}
+
+.invoice-table th {
+  background: #f8fafc;
+  border-right: 1px solid #111827;
+  border-bottom: 1.2px solid #111827;
+  padding: 5px 4px;
+  text-align: center;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.invoice-table th:last-child,
+.invoice-table td:last-child {
+  border-right: 0;
+}
+
+.invoice-table td {
+  height: 7.1mm;
+  border-right: 1px solid #111827;
+  border-bottom: 1px solid #cbd5e1;
+  padding: 3px 4px;
+  vertical-align: top;
+}
+
+.invoice-table .amount-cell,
+.invoice-table .rate-cell {
+  text-align: right;
+}
+
+.invoice-table .center-cell {
+  text-align: center;
+}
+
+.invoice-table .product-cell {
+  font-weight: 800;
+  word-break: break-word;
+}
+
+.invoice-table tfoot td {
+  background: #f8fafc;
+  border-top: 1.2px solid #111827;
+  border-bottom: 1.2px solid #111827;
+  font-weight: 900;
+}
+
+.invoice-continued {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.invoice-footer {
+  margin-top: auto;
+  border-top: 1.2px solid #111827;
+}
+
+.invoice-footer-grid {
+  display: grid;
+  border-bottom: 1.2px solid #111827;
+}
+
+.invoice-footer-cell {
+  min-height: 34mm;
+  border-right: 1.2px solid #111827;
+  padding: 7px;
+  font-size: 9.4px;
+  line-height: 1.35;
+}
+
+.invoice-footer-cell:last-child {
+  border-right: 0;
+}
+
+.invoice-section-title {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 9.5px;
+  font-weight: 900;
+  text-decoration: underline;
+  text-transform: uppercase;
+}
+
+.invoice-tax-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 6px;
+  font-size: 8.2px;
+}
+
+.invoice-tax-table th,
+.invoice-tax-table td {
+  border: 1px solid #111827;
+  padding: 3px;
+}
+
+.invoice-tax-table th {
+  background: #f3f6fb;
+  font-weight: 900;
+}
+
+.invoice-terms {
+  margin: 0;
+  padding-left: 14px;
+}
+
+.invoice-terms li {
+  margin-bottom: 2px;
+}
+
+.invoice-total-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-weight: 900;
+}
+
+.invoice-total-row.net {
+  margin-top: 5px;
+  border-top: 1px solid #111827;
+  padding-top: 6px;
+  color: #991b1b;
+  font-size: 11px;
+}
+
+.invoice-signature-row {
+  display: grid;
+  grid-template-columns: 1fr 210px;
+  align-items: end;
+  gap: 12px;
+  padding: 9px 12px 7px;
+  min-height: 26mm;
+}
+
+.invoice-amount-words {
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.invoice-signature {
+  text-align: center;
+  font-size: 9.5px;
+  font-weight: 800;
+}
+
+.invoice-signature img {
+  display: block;
+  height: 54px;
+  max-width: 185px;
+  object-fit: contain;
+  margin: 0 auto 2px;
+  mix-blend-mode: multiply;
+}
+
+.invoice-payment-qr {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 7px;
+  border-top: 1px solid #d7dde7;
+  padding-top: 7px;
+}
+
+.invoice-payment-qr img {
+  width: 70px;
+  height: 70px;
+  border: 1px solid #111827;
+  object-fit: contain;
+}
+
+.invoice-payment-qr strong {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.invoice-payment-qr span {
+  display: block;
+  margin-top: 2px;
+  word-break: break-all;
 }
 
 @media print {
   @page {
     size: A4 portrait;
-    margin: 5mm 8mm 5mm 8mm;
+    margin: 0;
   }
 
+  html,
   body {
+    width: 210mm;
+    background: #ffffff !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    background: white !important;
   }
 
-  .print\\:hidden { display: none !important; }
+  .print\\:hidden {
+    display: none !important;
+  }
 
-  #invoice-a4-wrapper {
-    width: 100% !important;
-    margin: 0 !important;
+  .invoice-shell {
+    background: #ffffff !important;
     padding: 0 !important;
+  }
+
+  .invoice-scroll {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  .invoice-document {
+    gap: 0 !important;
+    min-width: 0 !important;
+  }
+
+  .invoice-page {
     box-shadow: none !important;
-    background: white !important;
-    font-size: 9.5pt !important;
-    border: 1.5px solid black !important;
-  }
-
-  #invoice-a4-wrapper table {
-    font-size: 8.5pt !important;
-  }
-
-  #invoice-a4-wrapper th,
-  #invoice-a4-wrapper td {
-    padding: 2px 3px !important;
-  }
-
-  #invoice-a4-wrapper tr {
-    page-break-inside: avoid;
   }
 }
 `;
+
+const chunkItems = (items = []) => {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += PAGE_ITEM_LIMIT) {
+    chunks.push(items.slice(index, index + PAGE_ITEM_LIMIT));
+  }
+  return chunks.length ? chunks : [[]];
+};
+
+const normalizeWhatsAppPhone = (value = "") => {
+  const digits = String(value).replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.length === 10) return `91${digits}`;
+  if (digits.length === 11 && digits.startsWith("0")) return `91${digits.slice(1)}`;
+  return digits;
+};
+
+const downloadBlob = (blob, filename) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
 
 const PrintInvoice = () => {
   const { id } = useParams();
@@ -79,58 +442,16 @@ const PrintInvoice = () => {
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [whatsAppBusy, setWhatsAppBusy] = useState(false);
 
-  // Inline-editable states
-  const [shopDetails, setShopDetails] = useState({
-    shopName: "",
-    shopAddress: "",
-    shopMobile: "",
-    shopEmail: "",
-    gstNumber: "",
-    accountHolderName: "",
-    bankName: "",
-    bankBranch: "",
-    accountNumber: "",
-    ifscCode: "",
-    upiId: "",
-  });
-
-  const [buyerDetails, setBuyerDetails] = useState({
-    name: "",
-    address: "",
-    mobileNumber: "",
-    gstNumber: "",
-  });
-
-  const [termsList, setTermsList] = useState([
-    "Goods once sold will not be taken back or exchanged.",
-    "Bills not paid due date will attract 24% interest.",
-    "All disputes subject to Jurisdication only.",
-    "Prescribed Sales Tax declaration will be given.",
-  ]);
-
-  const [printOptions, setPrintOptions] = useState({
-    delivery: "",
-    termsOfPayment: "",
-    suppliersRef: "",
-    otherReferences: "",
-    buyerOrderNo: "",
-    termsOfDelivery: "",
-    dispatchDocNo: "",
-    dispatchDated: "",
-    dispatchThrough: "",
-    destination: "",
-  });
-
-  // Inject A4 print styles once
   useEffect(() => {
     const styleTag = document.createElement("style");
     styleTag.id = "a4-print-css";
     styleTag.textContent = A4_PRINT_STYLE;
     document.head.appendChild(styleTag);
     return () => {
-      const existing = document.getElementById("a4-print-css");
-      if (existing) existing.remove();
+      document.getElementById("a4-print-css")?.remove();
     };
   }, []);
 
@@ -150,160 +471,163 @@ const PrintInvoice = () => {
     getInvoice();
   }, [id]);
 
-  useEffect(() => {
-    if (settings) {
-      setShopDetails({
-        shopName: settings.shopName || "Walia’s creative design & prints",
-        shopAddress: settings.shopAddress || "Budhapara branch Raipur (C.G.)",
-        shopMobile: settings.shopMobile || "",
-        shopEmail: settings.shopEmail || "",
-        gstNumber: settings.gstNumber || "",
-        accountHolderName: settings.accountHolderName || "Walia’s creative design & prints",
-        bankName: settings.bankName || "Punjab national bank",
-        bankBranch: settings.bankBranch || "Budhapara branch Raipur (C.G.)",
-        accountNumber: settings.accountNumber || "0926050051323",
-        ifscCode: settings.ifscCode || "PUNB0092620",
-        upiId: settings.upiId || "0926050051323@pnb",
-      });
-    }
-  }, [settings]);
+  const isGst = invoice?.documentType !== "order" && invoice?.gstEnabled !== false;
+  const docLabel = isGst ? "Invoice" : "Order";
+  const docHeading = isGst ? "Tax Invoice" : "Estimate / Order";
 
-  useEffect(() => {
-    if (invoice) {
-      setBuyerDetails({
-        name: invoice.farmer?.name || "",
-        address: ((invoice.farmer?.address || "") + " " + (invoice.farmer?.village || "")).trim(),
-        mobileNumber: invoice.farmer?.mobileNumber || "",
-        gstNumber: invoice.farmer?.gstNumber || "",
-      });
+  const shop = useMemo(
+    () => ({
+      shopName: settings.shopName || FALLBACK_SHOP.shopName,
+      businessLine: FALLBACK_SHOP.businessLine,
+      shopAddress: settings.shopAddress || FALLBACK_SHOP.shopAddress,
+      shopMobile: settings.shopMobile || FALLBACK_SHOP.shopMobile,
+      shopEmail: settings.shopEmail || FALLBACK_SHOP.shopEmail,
+      gstNumber: settings.gstNumber || FALLBACK_SHOP.gstNumber,
+      accountHolderName:
+        settings.accountHolderName || FALLBACK_SHOP.accountHolderName,
+      bankName: settings.bankName || FALLBACK_SHOP.bankName,
+      bankBranch: settings.bankBranch || FALLBACK_SHOP.bankBranch,
+      accountNumber: settings.accountNumber || FALLBACK_SHOP.accountNumber,
+      ifscCode: settings.ifscCode || FALLBACK_SHOP.ifscCode,
+      paymentUpiId: FALLBACK_SHOP.paymentUpiId,
+    }),
+    [settings]
+  );
 
-      setPrintOptions((prev) => ({
-        ...prev,
-        termsOfPayment: invoice.billingType === "cash" ? "CASH" : "CREDIT",
-        dispatchDated: formatDate(invoice.createdAt),
-      }));
+  const pages = useMemo(() => chunkItems(invoice?.products || []), [invoice]);
 
-      const interestRate = settings.monthlyInterestRate * 12 || 24;
-      setTermsList([
-        "Goods once sold will not be taken back or exchanged.",
-        `Bills not paid due date will attract ${interestRate}% interest.`,
-        "All disputes subject to Jurisdication only.",
-        "Prescribed Sales Tax declaration will be given.",
-      ]);
-    }
-  }, [invoice, settings]);
+  const taxBreakup = useMemo(() => {
+    if (!invoice?.products?.length) return [];
 
-  const handleShopChange = (field, value) => {
-    setShopDetails((prev) => ({ ...prev, [field]: value }));
-  };
+    const groups = new Map();
+    invoice.products.forEach((item) => {
+      const quantity = toNumber(item.quantity, 1);
+      const sqFt = toNumber(item.sqFt) || toNumber(item.length) * toNumber(item.width);
+      const taxable =
+        item.baseAmount ?? sqFt * quantity * toNumber(item.selectedRate);
+      const rate = toNumber(item.gstRate);
+      const gstAmount = item.gstAmount ?? (taxable * rate) / 100;
+      const key = String(rate);
+      const existing = groups.get(key) || { rate, taxable: 0, gstAmount: 0 };
 
-  const handleBuyerChange = (field, value) => {
-    setBuyerDetails((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleTermChange = (index, value) => {
-    setTermsList((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
+      existing.taxable += taxable;
+      existing.gstAmount += gstAmount;
+      groups.set(key, existing);
     });
+
+    return [...groups.values()].sort((a, b) => a.rate - b.rate);
+  }, [invoice]);
+
+  const interestRate = toNumber(settings.monthlyInterestRate, 2) * 12 || 24;
+  const termsList = [
+    "Goods once sold will not be taken back or exchanged.",
+    `Outstanding bills will attract ${formatCompactNumber(interestRate)}% annual interest after due date.`,
+    "All disputes are subject to Raipur jurisdiction only.",
+    "E. & O. E. GST rules apply as per current regulations.",
+  ];
+
+  const grandTotal = toNumber(invoice?.grandTotal);
+  const grandTotalRounded = Math.round(grandTotal);
+  const roundOff = grandTotalRounded - grandTotal;
+  const amountInWords = numberToWords(grandTotalRounded);
+
+  const getPdfFilename = () =>
+    `${isGst ? "GST-Invoice" : "Order"}-${invoice?.invoiceNumber || "bill"}.pdf`;
+
+  const getPdfOptions = (filename, element) => ({
+    margin: 0,
+    filename,
+    image: { type: "jpeg", quality: 1 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: "#ffffff",
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: element.scrollWidth,
+      windowHeight: element.scrollHeight,
+    },
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+    pagebreak: { mode: ["css", "legacy"] },
+  });
+
+  const withPdfRender = async (element, action) => {
+    element.classList.add("pdf-render");
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    try {
+      return await action();
+    } finally {
+      element.classList.remove("pdf-render");
+    }
   };
 
-  // ── Print via browser dialog ──
+  const createPdfBlob = async (filename) => {
+    const element = document.getElementById("invoice-a4-wrapper");
+    if (!element) return null;
+
+    const html2pdf = (await import("html2pdf.js")).default;
+    const options = getPdfOptions(filename, element);
+
+    return withPdfRender(element, () =>
+      html2pdf().set(options).from(element).output("blob")
+    );
+  };
+
   const handlePrint = () => {
     window.print();
   };
 
-  // ── PDF Download using html2pdf.js ──
   const handleDownloadPDF = async () => {
-    const element = document.getElementById("invoice-a4-wrapper");
-    if (!element) return;
+    if (!invoice || pdfBusy) return;
 
-    const html2pdf = (await import("html2pdf.js")).default;
-
-    const isGst = invoice?.documentType !== "order" && invoice?.gstEnabled !== false;
-    const docLabel = isGst ? "GST-Invoice" : "Order";
-    const filename = `${docLabel}-${invoice?.invoiceNumber || "bill"}.pdf`;
-
-    const opt = {
-      margin: [10, 12, 10, 12],
-      filename,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["avoid-all", "css"] },
-    };
-
-    await html2pdf().set(opt).from(element).save();
+    setPdfBusy(true);
+    try {
+      const filename = getPdfFilename();
+      const blob = await createPdfBlob(filename);
+      if (blob) downloadBlob(blob, filename);
+    } finally {
+      setPdfBusy(false);
+    }
   };
 
-  // ── WhatsApp: Download PDF → open WhatsApp with message ──
   const handleWhatsApp = async () => {
-    const phone = invoice?.farmer?.mobileNumber?.replace(/\D/g, "");
+    if (!invoice || whatsAppBusy) return;
+
+    const phone = normalizeWhatsAppPhone(invoice?.farmer?.mobileNumber);
     if (!phone) {
-      alert("Customer ka mobile number nahi mila.");
+      alert("Customer mobile number nahi mila.");
       return;
     }
 
-    // 1. Download PDF first
-    await handleDownloadPDF();
+    setWhatsAppBusy(true);
+    try {
+      const filename = getPdfFilename();
+      const blob = await createPdfBlob(filename);
+      if (!blob) return;
 
-    // 2. Build message
-    const isGst = invoice?.documentType !== "order" && invoice?.gstEnabled !== false;
-    const docLabel = isGst ? "Invoice" : "Order";
-    const filename = `${isGst ? "GST-Invoice" : "Order"}-${invoice?.invoiceNumber || "bill"}.pdf`;
+      const pdfFile = new File([blob], filename, { type: "application/pdf" });
+      const date = formatDate(invoice?.createdAt);
+      const message = `${docLabel} #${invoice?.invoiceNumber}\nDate: ${date}\nCustomer: ${invoice?.farmer?.name || "-"}\nAmount: Rs ${formatNumber(grandTotalRounded)}\n\nPDF invoice is attached.`;
 
-    const date = formatDate(invoice?.createdAt);
+      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        await navigator.share({
+          files: [pdfFile],
+          title: filename,
+          text: message,
+        });
+        return;
+      }
 
-    const productLines = invoice?.products
-      ?.map((item) => {
-        const sqFt = item.sqFt ?? toNumber(item.length) * toNumber(item.width);
-        const baseAmount =
-          item.baseAmount ?? sqFt * toNumber(item.selectedRate) * toNumber(item.quantity, 1);
-        return `• ${item?.product?.productName} - ${sqFt} sqft @ ₹${item.selectedRate} = ₹${Math.round(baseAmount).toLocaleString("en-IN")}`;
-      })
-      .join("\n");
-
-    const gstLine =
-      isGst
-        ? `🏷️ GST: ₹${Math.round(toNumber(invoice?.totalGST)).toLocaleString("en-IN")}\n`
-        : "";
-
-    const message = `🧾 *${docLabel} #${invoice?.invoiceNumber}*
-📅 Date: ${date}
-👤 Customer: ${invoice?.farmer?.name}
-📍 Area: ${invoice?.farmer?.village}
-
-📦 *Items:*
-${productLines}
-
-💰 Subtotal: ₹${Math.round(toNumber(invoice?.subTotal)).toLocaleString("en-IN")}
-${gstLine}✅ *Grand Total: ₹${Math.round(toNumber(invoice?.grandTotal)).toLocaleString("en-IN")}*
-
-📎 PDF "${filename}" download ho gaya hai.
-WhatsApp mein attach karke bhejo!
-
-_Thank you for your business! 🌾_`;
-
-    // 3. Open WhatsApp Web
-    const whatsappUrl = `https://wa.me/91${phone}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, "_blank");
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return "";
-    const d = new Date(dateString);
-    const day = String(d.getDate()).padStart(2, "0");
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
-  };
-
-  const formatNumber = (value) => {
-    return toNumber(value).toLocaleString("en-IN", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+      downloadBlob(blob, filename);
+      const fallbackMessage = `${message}\n\nPDF has been downloaded. Please attach the downloaded file in this WhatsApp chat.`;
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(fallbackMessage)}`, "_blank");
+    } catch (err) {
+      console.error("WhatsApp share failed:", err);
+      alert("PDF share nahi ho paya. Please Save PDF karke WhatsApp me attach karein.");
+    } finally {
+      setWhatsAppBusy(false);
+    }
   };
 
   if (loading) {
@@ -322,590 +646,415 @@ _Thank you for your business! 🌾_`;
     );
   }
 
-  const isGst = invoice?.documentType !== "order" && invoice?.gstEnabled !== false;
-  const docLabel = isGst ? "Invoice" : "Order";
-
-  // GST breakup: CGST + SGST (50/50 split)
-  const totalGST = toNumber(invoice?.totalGST);
-  const cgst = totalGST / 2;
-  const sgst = totalGST / 2;
-
-  const grandTotal = toNumber(invoice?.grandTotal);
-  const grandTotalRounded = Math.round(grandTotal);
-  const adjustment = grandTotalRounded - grandTotal;
-  const amountInWords = numberToWords(grandTotalRounded);
-
-  // spacer row height to fit A4 page perfectly
-  const itemRowsCount = invoice?.products?.length || 0;
-  const spacerHeight = Math.max(15, 120 - (itemRowsCount * 15));
-
-  // Dynamic QR Code link URL
-  const payeeName = shopDetails.shopName || "Walia’s creative design & prints";
-  const upiId = shopDetails.upiId || "0926050051323@pnb";
-  const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${grandTotalRounded}&tn=Invoice%20${invoice?.invoiceNumber}&cu=INR`;
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(upiUrl)}`;
-
   return (
-    <div className="space-y-6 bg-slate-100 p-4 sm:p-6">
-      {/* ── Action Buttons (hidden on print) ── */}
-      <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
+    <div className="invoice-shell space-y-5 p-3 sm:p-6">
+      <div className="mx-auto flex max-w-5xl flex-col gap-3 rounded-2xl bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between print:hidden">
         <Link
           to="/invoices"
-          className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm hover:text-blue-600"
+          className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-blue-600"
         >
           <ArrowLeft size={16} />
           Back to Invoices
         </Link>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* WhatsApp */}
+        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
           <button
             onClick={handleWhatsApp}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-500 px-5 py-3 font-black text-white shadow-lg shadow-green-200 hover:bg-green-600"
+            disabled={whatsAppBusy}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            <MessageCircle size={18} />
-            Send to WhatsApp
+            <MessageCircle size={17} />
+            {whatsAppBusy ? "Preparing PDF..." : "Send PDF on WhatsApp"}
           </button>
 
-          {/* PDF Download */}
+          <Link
+            to={`/invoices/edit/${invoice?._id}`}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-amber-600"
+          >
+            <Pencil size={17} />
+            Edit {docLabel}
+          </Link>
+
           <button
             onClick={handleDownloadPDF}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-800 px-5 py-3 font-black text-white shadow-lg hover:bg-slate-900"
+            disabled={pdfBusy}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            <Download size={18} />
-            Save PDF (A4)
+            <Download size={17} />
+            {pdfBusy ? "Saving..." : "Save PDF A4"}
           </button>
 
-          {/* Print */}
           <button
             onClick={handlePrint}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-blue-700"
           >
-            <Printer size={18} />
+            <Printer size={17} />
             Print {docLabel}
           </button>
         </div>
       </div>
 
-      {/* ── Print Customizations Panel (hidden on print) ── */}
-      <div className="mx-auto max-w-4xl rounded-3xl border border-slate-200 bg-white p-5 shadow-sm print:hidden">
-        <h3 className="mb-4 text-xs font-black uppercase tracking-widest text-slate-700">
-          Print customizations (Dispatch & Delivery Details)
-        </h3>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Delivery</label>
-            <input
-              type="text"
-              value={printOptions.delivery}
-              onChange={(e) => setPrintOptions({ ...printOptions, delivery: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-blue-500"
-              placeholder="e.g. CASH"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Terms of Payment</label>
-            <input
-              type="text"
-              value={printOptions.termsOfPayment}
-              onChange={(e) => setPrintOptions({ ...printOptions, termsOfPayment: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Suppliers Ref.</label>
-            <input
-              type="text"
-              value={printOptions.suppliersRef}
-              onChange={(e) => setPrintOptions({ ...printOptions, suppliersRef: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Other Reference(s)</label>
-            <input
-              type="text"
-              value={printOptions.otherReferences}
-              onChange={(e) => setPrintOptions({ ...printOptions, otherReferences: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Buyer Order No</label>
-            <input
-              type="text"
-              value={printOptions.buyerOrderNo}
-              onChange={(e) => setPrintOptions({ ...printOptions, buyerOrderNo: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Terms of Delivery</label>
-            <input
-              type="text"
-              value={printOptions.termsOfDelivery}
-              onChange={(e) => setPrintOptions({ ...printOptions, termsOfDelivery: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Dispatch Doc No</label>
-            <input
-              type="text"
-              value={printOptions.dispatchDocNo}
-              onChange={(e) => setPrintOptions({ ...printOptions, dispatchDocNo: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Dispatch Date</label>
-            <input
-              type="text"
-              value={printOptions.dispatchDated}
-              onChange={(e) => setPrintOptions({ ...printOptions, dispatchDated: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Dispatch Through</label>
-            <input
-              type="text"
-              value={printOptions.dispatchThrough}
-              onChange={(e) => setPrintOptions({ ...printOptions, dispatchThrough: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] font-black uppercase tracking-wider text-slate-500">Destination</label>
-            <input
-              type="text"
-              value={printOptions.destination}
-              onChange={(e) => setPrintOptions({ ...printOptions, destination: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-blue-500"
-            />
-          </div>
-        </div>
-        <p className="mt-3 text-xs font-bold text-slate-500">
-          💡 Click directly on the Company Name, Address, Bank details, UPI ID, or Terms below in the preview to edit them dynamically!
-        </p>
-      </div>
+      <div className="invoice-scroll">
+        <div id="invoice-a4-wrapper" ref={printRef} className="invoice-document">
+          {pages.map((pageItems, pageIndex) => {
+            const isLastPage = pageIndex === pages.length - 1;
+            const serialOffset = pageIndex * PAGE_ITEM_LIMIT;
 
-      {/* ── A4 Invoice Content ── */}
-      <div className="w-full overflow-x-auto pb-4">
-        <div
-          id="invoice-a4-wrapper"
-          ref={printRef}
-          style={{
-            fontFamily: "'Segoe UI', Arial, sans-serif",
-            border: "1.5px solid black",
-            margin: "0 auto",
-            padding: "0",
-            backgroundColor: "#fff",
-            color: "#000",
-            boxSizing: "border-box",
-            minWidth: "750px"
-          }}
-          className="mx-auto w-full max-w-[210mm] shadow-lg print:max-w-none print:shadow-none print:min-w-0"
-        >
-        {/* Title Header */}
-        <div style={{ textAlign: "center", padding: "4px 0", borderBottom: "1.5px solid black" }}>
-          <span style={{ fontSize: "13px", fontWeight: "bold", color: "#0000FF", letterSpacing: "1.5px" }}>
-            {isGst ? "GST INVOICE" : "ESTIMATE / ORDER"}
-          </span>
-        </div>
-
-        {/* Two-Column Seller & Invoice Details */}
-        <div style={{ display: "grid", gridTemplateColumns: "58% 42%", borderBottom: "1.5px solid black" }}>
-          {/* Left Column: Shop & Buyer Details */}
-          <div style={{ borderRight: "1.5px solid black", display: "flex", flexDirection: "column" }}>
-            {/* Shop Details */}
-            <div style={{ padding: "8px", minHeight: "135px" }}>
-              <input
-                type="text"
-                value={shopDetails.shopName}
-                onChange={(e) => handleShopChange("shopName", e.target.value)}
-                className="inline-edit"
-                style={{ fontSize: "15px", fontWeight: "900", textTransform: "uppercase", letterSpacing: "0.5px" }}
-              />
-              <textarea
-                rows="2"
-                value={shopDetails.shopAddress}
-                onChange={(e) => handleShopChange("shopAddress", e.target.value)}
-                className="inline-edit mt-1"
-                style={{ fontSize: "9.5px", fontWeight: "bold", textTransform: "uppercase", lineHeight: "1.3" }}
-              />
-              <div style={{ display: "flex", gap: "4px", fontSize: "9.5px", fontWeight: "bold", marginTop: "2px" }}>
-                <span>Phone:</span>
-                <input
-                  type="text"
-                  value={shopDetails.shopMobile}
-                  onChange={(e) => handleShopChange("shopMobile", e.target.value)}
-                  className="inline-edit"
-                  style={{ width: "150px" }}
-                />
-              </div>
-              <div style={{ display: "flex", gap: "4px", fontSize: "9.5px", fontWeight: "bold" }}>
-                <span>E-Mail:</span>
-                <input
-                  type="text"
-                  value={shopDetails.shopEmail}
-                  onChange={(e) => handleShopChange("shopEmail", e.target.value)}
-                  className="inline-edit"
-                  style={{ width: "200px" }}
-                />
-              </div>
-              {isGst && (
-                <div style={{ display: "flex", gap: "4px", fontSize: "9.5px", fontWeight: "bold" }}>
-                  <span>GST No:</span>
-                  <input
-                    type="text"
-                    value={shopDetails.gstNumber}
-                    onChange={(e) => handleShopChange("gstNumber", e.target.value)}
-                    className="inline-edit"
-                    style={{ width: "180px" }}
+            return (
+              <div className="invoice-page" key={`invoice-page-${pageIndex}`}>
+                <div className="invoice-sheet">
+                  <InvoiceHeader
+                    docHeading={docHeading}
+                    invoice={invoice}
+                    isGst={isGst}
+                    pageIndex={pageIndex}
+                    pageCount={pages.length}
+                    shop={shop}
                   />
-                </div>
-              )}
-            </div>
 
-            {/* Buyer Details */}
-            <div style={{ padding: "8px", borderTop: "1.5px solid black", minHeight: "95px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-              <div>
-                <p style={{ fontSize: "8.5px", margin: "0 0 2px 0", color: "#555" }}>Buyer details:</p>
-                <input
-                  type="text"
-                  value={buyerDetails.name}
-                  onChange={(e) => handleBuyerChange("name", e.target.value)}
-                  className="inline-edit"
-                  style={{ fontSize: "11px", fontWeight: "bold", textTransform: "uppercase" }}
-                />
-                <textarea
-                  rows="2"
-                  value={buyerDetails.address}
-                  onChange={(e) => handleBuyerChange("address", e.target.value)}
-                  className="inline-edit mt-1"
-                  style={{ fontSize: "9.5px", textTransform: "uppercase", lineHeight: "1.3" }}
-                />
-                <div style={{ display: "flex", gap: "4px", fontSize: "9.5px", marginTop: "2px" }}>
-                  <span>Phone:</span>
-                  <input
-                    type="text"
-                    value={buyerDetails.mobileNumber}
-                    onChange={(e) => handleBuyerChange("mobileNumber", e.target.value)}
-                    className="inline-edit"
-                    style={{ width: "150px" }}
-                  />
-                </div>
-              </div>
-              {isGst && (
-                <div style={{ display: "flex", gap: "4px", fontSize: "9.5px", fontWeight: "bold" }}>
-                  <span>GST NO:</span>
-                  <input
-                    type="text"
-                    value={buyerDetails.gstNumber}
-                    onChange={(e) => handleBuyerChange("gstNumber", e.target.value)}
-                    className="inline-edit"
-                    style={{ width: "180px" }}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Column: Metadata Grid */}
-          <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
-            {/* Row 1 */}
-            <div style={{ display: "flex", borderBottom: "1.5px solid black", height: "38px" }}>
-              <div style={{ width: "50%", borderRight: "1.5px solid black", padding: "3px 6px" }}>
-                <span style={{ fontSize: "7.5px", color: "#555", display: "block" }}>Invoice No. :</span>
-                <span style={{ fontSize: "10px", fontWeight: "bold" }}>{invoice?.invoiceNumber}</span>
-              </div>
-              <div style={{ width: "50%", padding: "3px 6px" }}>
-                <span style={{ fontSize: "7.5px", color: "#555", display: "block" }}>Date :</span>
-                <span style={{ fontSize: "10px", fontWeight: "bold" }}>{formatDate(invoice?.createdAt)}</span>
-              </div>
-            </div>
-
-            {/* Row 2 */}
-            <div style={{ display: "flex", borderBottom: "1.5px solid black", height: "38px" }}>
-              <div style={{ width: "50%", borderRight: "1.5px solid black", padding: "3px 6px" }}>
-                <span style={{ fontSize: "7.5px", color: "#555", display: "block" }}>Delivery</span>
-                <span style={{ fontSize: "9.5px", fontWeight: "bold" }}>{printOptions.delivery}</span>
-              </div>
-              <div style={{ width: "50%", padding: "3px 6px" }}>
-                <span style={{ fontSize: "7.5px", color: "#555", display: "block" }}>Terms Of Payment</span>
-                <span style={{ fontSize: "9.5px", fontWeight: "bold", textTransform: "uppercase" }}>{printOptions.termsOfPayment}</span>
-              </div>
-            </div>
-
-            {/* Row 3 */}
-            <div style={{ display: "flex", borderBottom: "1.5px solid black", height: "38px" }}>
-              <div style={{ width: "50%", borderRight: "1.5px solid black", padding: "3px 6px" }}>
-                <span style={{ fontSize: "7.5px", color: "#555", display: "block" }}>Suppilers Ref.</span>
-                <span style={{ fontSize: "9.5px", fontWeight: "bold" }}>{printOptions.suppliersRef}</span>
-              </div>
-              <div style={{ width: "50%", padding: "3px 6px" }}>
-                <span style={{ fontSize: "7.5px", color: "#555", display: "block" }}>Other Reference(s)</span>
-                <span style={{ fontSize: "9.5px", fontWeight: "bold" }}>{printOptions.otherReferences}</span>
-              </div>
-            </div>
-
-            {/* Row 4 */}
-            <div style={{ display: "flex", borderBottom: "1.5px solid black", height: "38px" }}>
-              <div style={{ width: "50%", borderRight: "1.5px solid black", padding: "3px 6px" }}>
-                <span style={{ fontSize: "7.5px", color: "#555", display: "block" }}>Buyer Order No</span>
-                <span style={{ fontSize: "9.5px", fontWeight: "bold" }}>{printOptions.buyerOrderNo}</span>
-              </div>
-              <div style={{ width: "50%", padding: "3px 6px" }}>
-                <span style={{ fontSize: "7.5px", color: "#555", display: "block" }}>TERMS OF DELIVERY</span>
-                <span style={{ fontSize: "9.5px", fontWeight: "bold" }}>{printOptions.termsOfDelivery}</span>
-              </div>
-            </div>
-
-            {/* Row 5 */}
-            <div style={{ display: "flex", borderBottom: "1.5px solid black", height: "38px" }}>
-              <div style={{ width: "50%", borderRight: "1.5px solid black", padding: "3px 6px" }}>
-                <span style={{ fontSize: "7.5px", color: "#555", display: "block" }}>Dispatch Document No</span>
-                <span style={{ fontSize: "9.5px", fontWeight: "bold" }}>{printOptions.dispatchDocNo}</span>
-              </div>
-              <div style={{ width: "50%", padding: "3px 6px" }}>
-                <span style={{ fontSize: "7.5px", color: "#555", display: "block" }}>Dated</span>
-                <span style={{ fontSize: "9.5px", fontWeight: "bold" }}>{printOptions.dispatchDated}</span>
-              </div>
-            </div>
-
-            {/* Row 6 */}
-            <div style={{ display: "flex", height: "38px" }}>
-              <div style={{ width: "50%", borderRight: "1.5px solid black", padding: "3px 6px" }}>
-                <span style={{ fontSize: "7.5px", color: "#555", display: "block" }}>Dispatch through</span>
-                <span style={{ fontSize: "9.5px", fontWeight: "bold" }}>{printOptions.dispatchThrough}</span>
-              </div>
-              <div style={{ width: "50%", padding: "3px 6px" }}>
-                <span style={{ fontSize: "7.5px", color: "#555", display: "block" }}>Destination</span>
-                <span style={{ fontSize: "9.5px", fontWeight: "bold" }}>{printOptions.destination}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Product Items Table */}
-        <table style={{ width: "100%", borderCollapse: "collapse", borderBottom: "1.5px solid black" }}>
-          <thead>
-            <tr style={{ borderBottom: "1.5px solid black", fontSize: "8.5px", fontWeight: "bold" }}>
-              <th style={{ borderRight: "1.5px solid black", width: "4%", padding: "4px", textAlign: "center" }}>S.</th>
-              <th style={{ borderRight: "1.5px solid black", width: "34%", padding: "4px", textAlign: "left" }}>PRODUCT NAME</th>
-              <th style={{ borderRight: "1.5px solid black", width: "16%", padding: "0", textAlign: "center" }} colSpan="2">
-                <div style={{ borderBottom: "1px solid black", padding: "2px 0" }}>SIZE DETAILS</div>
-                <div style={{ display: "flex" }}>
-                  <div style={{ width: "50%", borderRight: "1px solid black", padding: "1px 0" }}>WIDTH</div>
-                  <div style={{ width: "50%", padding: "1px 0" }}>HEIGHT</div>
-                </div>
-              </th>
-              <th style={{ borderRight: "1.5px solid black", width: "7%", padding: "4px", textAlign: "center" }}>PCS</th>
-              <th style={{ borderRight: "1.5px solid black", width: "10%", padding: "4px", textAlign: "center" }}>QTY./SQFT</th>
-              <th style={{ borderRight: "1.5px solid black", width: "9%", padding: "4px", textAlign: "right" }}>RATE</th>
-              <th style={{ borderRight: "1.5px solid black", width: "6%", padding: "4px", textAlign: "center" }}>PER</th>
-              <th style={{ borderRight: "1.5px solid black", width: "5%", padding: "4px", textAlign: "center" }}>DISC%</th>
-              <th style={{ width: "9%", padding: "4px", textAlign: "right" }}>AMOUNT</th>
-            </tr>
-          </thead>
-          <tbody>
-            {invoice?.products?.map((item, idx) => {
-              const sqFt = item.sqFt ?? toNumber(item.length) * toNumber(item.width);
-              const totalSqFt = sqFt * toNumber(item.quantity, 1);
-              const amount = item.baseAmount ?? totalSqFt * toNumber(item.selectedRate);
-
-              return (
-                <tr key={item._id || idx} style={{ fontSize: "9px", height: "24px" }}>
-                  <td style={{ borderRight: "1.5px solid black", textAlign: "center" }}>{idx + 1}</td>
-                  <td style={{ borderRight: "1.5px solid black", paddingLeft: "6px", fontWeight: "bold" }}>{item?.product?.productName}</td>
-                  <td style={{ borderRight: "1px solid black", textAlign: "center" }}>{toNumber(item.width).toFixed(2)}</td>
-                  <td style={{ borderRight: "1.5px solid black", textAlign: "center" }}>{toNumber(item.length).toFixed(2)}</td>
-                  <td style={{ borderRight: "1.5px solid black", textAlign: "center" }}>{toNumber(item.quantity).toFixed(2)}</td>
-                  <td style={{ borderRight: "1.5px solid black", textAlign: "center" }}>{totalSqFt.toFixed(2)}</td>
-                  <td style={{ borderRight: "1.5px solid black", textAlign: "right", paddingRight: "4px" }}>{toNumber(item.selectedRate).toFixed(2)}</td>
-                  <td style={{ borderRight: "1.5px solid black", textAlign: "center" }}>{item?.product?.unit || "SQFT"}</td>
-                  <td style={{ borderRight: "1.5px solid black", textAlign: "center" }}>0.00</td>
-                  <td style={{ textAlign: "right", paddingRight: "4px" }}>{toNumber(amount).toFixed(2)}</td>
-                </tr>
-              );
-            })}
-            {/* Empty spacer row to push total to bottom and render vertical borders */}
-            <tr style={{ height: `${spacerHeight}px` }}>
-              <td style={{ borderRight: "1.5px solid black" }}></td>
-              <td style={{ borderRight: "1.5px solid black" }}></td>
-              <td style={{ borderRight: "1px solid black" }}></td>
-              <td style={{ borderRight: "1.5px solid black" }}></td>
-              <td style={{ borderRight: "1.5px solid black" }}></td>
-              <td style={{ borderRight: "1.5px solid black" }}></td>
-              <td style={{ borderRight: "1.5px solid black" }}></td>
-              <td style={{ borderRight: "1.5px solid black" }}></td>
-              <td style={{ borderRight: "1.5px solid black" }}></td>
-              <td></td>
-            </tr>
-            {/* Total row of table */}
-            <tr style={{ borderTop: "1.5px solid black", fontSize: "9.5px", fontWeight: "bold", height: "26px" }}>
-              <td style={{ borderRight: "1.5px solid black" }}></td>
-              <td style={{ borderRight: "1.5px solid black", paddingLeft: "6px", textAlign: "left" }}>TOTAL</td>
-              <td style={{ borderRight: "1px solid black" }}></td>
-              <td style={{ borderRight: "1.5px solid black" }}></td>
-              <td style={{ borderRight: "1.5px solid black" }}></td>
-              <td style={{ borderRight: "1.5px solid black" }}></td>
-              <td style={{ borderRight: "1.5px solid black" }}></td>
-              <td style={{ borderRight: "1.5px solid black" }}></td>
-              <td style={{ borderRight: "1.5px solid black" }}></td>
-              <td style={{ textAlign: "right", paddingRight: "4px" }}>{toNumber(invoice?.subTotal).toFixed(2)}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* Footer Area: Bank & Terms Left, Summary Totals Right */}
-        <div style={{ display: "grid", gridTemplateColumns: "60% 40%", padding: "6px 0", borderBottom: "1.5px solid black" }}>
-          {/* Left Column: Bank Details & Terms */}
-          <div style={{ paddingLeft: "8px", paddingRight: "8px" }}>
-            {/* Bank Details & QR Code Grid */}
-            <div style={{ display: "grid", gridTemplateColumns: "70% 30%", marginBottom: "8px", alignItems: "center" }}>
-              <div style={{ fontSize: "8.5px", fontWeight: "bold", lineHeight: "1.4" }}>
-                <div style={{ display: "flex", gap: "4px" }}>
-                  <span>A/C NAME -</span>
-                  <input
-                    type="text"
-                    value={shopDetails.accountHolderName}
-                    onChange={(e) => handleShopChange("accountHolderName", e.target.value)}
-                    className="inline-edit"
-                    style={{ textTransform: "uppercase" }}
-                  />
-                </div>
-                <div style={{ display: "flex", gap: "4px" }}>
-                  <span>BANK NAME -</span>
-                  <input
-                    type="text"
-                    value={shopDetails.bankName}
-                    onChange={(e) => handleShopChange("bankName", e.target.value)}
-                    className="inline-edit"
-                    style={{ textTransform: "uppercase" }}
-                  />
-                </div>
-                <div style={{ display: "flex", gap: "4px" }}>
-                  <span>BRANCH -</span>
-                  <input
-                    type="text"
-                    value={shopDetails.bankBranch}
-                    onChange={(e) => handleShopChange("bankBranch", e.target.value)}
-                    className="inline-edit"
-                    style={{ textTransform: "uppercase" }}
-                  />
-                </div>
-                <div style={{ display: "flex", gap: "4px" }}>
-                  <span>ACCOUNT NO. -</span>
-                  <input
-                    type="text"
-                    value={shopDetails.accountNumber}
-                    onChange={(e) => handleShopChange("accountNumber", e.target.value)}
-                    className="inline-edit"
-                  />
-                </div>
-                <div style={{ display: "flex", gap: "4px" }}>
-                  <span>BRANCH IFSC -</span>
-                  <input
-                    type="text"
-                    value={shopDetails.ifscCode}
-                    onChange={(e) => handleShopChange("ifscCode", e.target.value)}
-                    className="inline-edit"
-                  />
-                </div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                <img
-                  src={qrCodeUrl}
-                  alt="Scan to Pay"
-                  style={{ width: "70px", height: "70px", border: "1.5px solid black", padding: "1px", background: "white" }}
-                />
-                <span style={{ fontSize: "7px", fontWeight: "bold", marginTop: "2px" }}>SCAN TO PAY</span>
-                <input
-                  type="text"
-                  value={shopDetails.upiId}
-                  onChange={(e) => handleShopChange("upiId", e.target.value)}
-                  className="inline-edit print:hidden"
-                  placeholder="UPI ID"
-                  style={{ fontSize: "7.5px", fontWeight: "bold", textAlign: "center", width: "95px", marginTop: "3px", borderBottom: "1px dotted #ccc" }}
-                />
-              </div>
-            </div>
-
-            {/* Terms & Conditions */}
-            <div style={{ fontSize: "8.5px" }}>
-              <span style={{ textDecoration: "underline", fontWeight: "bold", fontStyle: "italic" }}>Terms & Conditions</span>
-              <ol style={{ margin: "2px 0 0 0", paddingLeft: "14px", lineHeight: "1.3", listStyleType: "decimal" }}>
-                {termsList.map((term, index) => (
-                  <li key={index}>
-                    <input
-                      type="text"
-                      value={term}
-                      onChange={(e) => handleTermChange(index, e.target.value)}
-                      className="inline-edit"
+                  <div className="invoice-page-body">
+                    <ItemsTable
+                      invoice={invoice}
+                      isGst={isGst}
+                      pageItems={pageItems}
+                      serialOffset={serialOffset}
+                      showPageTotal={isLastPage}
                     />
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </div>
 
-          {/* Right Column: Summary Totals */}
-          <div style={{ paddingRight: "8px", display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "flex-start" }}>
-            <table style={{ width: "100%", fontSize: "9.5px", fontWeight: "bold", borderCollapse: "collapse" }}>
-              <tbody>
-                <tr>
-                  <td style={{ textAlign: "left", padding: "3px 0" }}>SUB TOTAL AMOUNT :</td>
-                  <td style={{ textAlign: "right", padding: "3px 0" }}>{formatNumber(invoice?.subTotal)}</td>
-                </tr>
-                {isGst && totalGST > 0 && (
-                  <>
-                    <tr>
-                      <td style={{ textAlign: "left", padding: "2.5px 0" }}>CGST (50%) :</td>
-                      <td style={{ textAlign: "right", padding: "2.5px 0" }}>{formatNumber(cgst)}</td>
-                    </tr>
-                    <tr>
-                      <td style={{ textAlign: "left", padding: "2.5px 0" }}>SGST (50%) :</td>
-                      <td style={{ textAlign: "right", padding: "2.5px 0" }}>{formatNumber(sgst)}</td>
-                    </tr>
-                  </>
-                )}
-                <tr>
-                  <td style={{ textAlign: "left", padding: "3px 0" }}>BILL DISC :</td>
-                  <td style={{ textAlign: "right", padding: "3px 0" }}>0.00</td>
-                </tr>
-                <tr>
-                  <td style={{ textAlign: "left", padding: "3px 0" }}>OTHER ADJUSTMENT :</td>
-                  <td style={{ textAlign: "right", padding: "3px 0" }}>{formatNumber(adjustment)}</td>
-                </tr>
-                <tr style={{ borderTop: "1px solid black" }}>
-                  <td style={{ textAlign: "left", padding: "4px 0" }}>TOTAL AMOUNT R/off :</td>
-                  <td style={{ textAlign: "right", padding: "4px 0" }}>{formatNumber(grandTotalRounded)}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+                    {!isLastPage && (
+                      <div className="invoice-continued">
+                        Continued on next page
+                      </div>
+                    )}
 
-        {/* Chargeable Amount in Words & Signatures */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", padding: "8px 8px 8px 8px" }}>
-          {/* Amount in words */}
-          <div style={{ width: "60%" }}>
-            <span style={{ fontSize: "8px", color: "#555", display: "block" }}>Amount Chargeable(in words)</span>
-            <span style={{ fontSize: "9.5px", fontWeight: "bold" }}>{amountInWords}</span>
-          </div>
-
-          {/* Signature */}
-          <div style={{ width: "40%", textAlign: "right", fontSize: "8.5px" }}>
-            <span style={{ display: "block", marginBottom: "35px", fontStyle: "italic" }}>Authorised signatory</span>
-            <span style={{ fontWeight: "bold" }}>For {shopDetails.shopName.toUpperCase()}</span>
-          </div>
-        </div>
+                    {isLastPage && (
+                      <InvoiceFooter
+                        amountInWords={amountInWords}
+                        grandTotalRounded={grandTotalRounded}
+                        invoice={invoice}
+                        isGst={isGst}
+                        roundOff={roundOff}
+                        shop={shop}
+                        taxBreakup={taxBreakup}
+                        termsList={termsList}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
   );
+};
+
+const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop }) => {
+  const customerAddress = [
+    invoice?.farmer?.address,
+    invoice?.farmer?.village,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const paymentMode = invoice?.billingType === "cash" ? "Cash" : "Credit";
+
+  return (
+    <>
+      <div className="invoice-top-line">
+        <span>{isGst ? `GSTIN: ${shop.gstNumber}` : "Non-GST Order"}</span>
+        <span>{docHeading}</span>
+        <span style={{ textAlign: "right" }}>
+          Page {pageIndex + 1} of {pageCount}
+        </span>
+      </div>
+
+      <div className="invoice-title">
+        <h1>{shop.shopName}</h1>
+        <p>{shop.shopAddress}</p>
+      </div>
+
+      <div className="invoice-business-line">{shop.businessLine}</div>
+
+      <div className="invoice-contact-line">
+        Mobile: {shop.shopMobile}
+        {shop.shopEmail ? ` | Email: ${shop.shopEmail}` : ""}
+      </div>
+
+      <div className="invoice-party-grid">
+        <div className="invoice-buyer-box">
+          <span className="invoice-muted-label">Bill To</span>
+          <p className="invoice-buyer-name">{invoice?.farmer?.name || "-"}</p>
+          <div style={{ marginTop: 4, lineHeight: 1.45 }}>
+            <div>{customerAddress || "-"}</div>
+            <div>Mobile: {invoice?.farmer?.mobileNumber || "-"}</div>
+            {isGst && <div>GSTIN: {invoice?.farmer?.gstNumber || "-"}</div>}
+          </div>
+        </div>
+
+        <div className="invoice-meta-box">
+          <div className="invoice-meta-row">
+            <strong>Invoice No.</strong>
+            <strong>{invoice?.invoiceNumber}</strong>
+          </div>
+          <div className="invoice-meta-row">
+            <strong>Invoice Date</strong>
+            <strong>{formatDate(invoice?.createdAt)}</strong>
+          </div>
+          <div className="invoice-meta-row">
+            <strong>Payment Mode</strong>
+            <strong>{paymentMode}</strong>
+          </div>
+          <div className="invoice-meta-row">
+            <strong>Document Type</strong>
+            <strong>{isGst ? "GST Invoice" : "Order"}</strong>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+const ItemsTable = ({ invoice, isGst, pageItems, serialOffset, showPageTotal }) => {
+  const blankRows = Math.max(0, PAGE_ITEM_LIMIT - pageItems.length);
+
+  return (
+    <table className="invoice-table">
+      <colgroup>
+        <col style={{ width: "6%" }} />
+        <col style={{ width: isGst ? "26%" : "37%" }} />
+        {isGst && <col style={{ width: "10%" }} />}
+        {isGst && <col style={{ width: "8%" }} />}
+        <col style={{ width: "12%" }} />
+        <col style={{ width: "10%" }} />
+        <col style={{ width: "8%" }} />
+        <col style={{ width: "10%" }} />
+        <col style={{ width: "10%" }} />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>S. No.</th>
+          <th>Particulars</th>
+          {isGst && <th>HSN/SAC</th>}
+          {isGst && <th>GST %</th>}
+          <th>Size</th>
+          <th>Sq.Ft.</th>
+          <th>Qty.</th>
+          <th>Rate</th>
+          <th>Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {pageItems.map((item, idx) => {
+          const quantity = toNumber(item.quantity, 1);
+          const sqFt = toNumber(item.sqFt) || toNumber(item.length) * toNumber(item.width);
+          const amount =
+            item.baseAmount ?? sqFt * quantity * toNumber(item.selectedRate);
+
+          return (
+            <tr key={item._id || `${item.product?._id}-${idx}`}>
+              <td className="center-cell">{serialOffset + idx + 1}</td>
+              <td className="product-cell">
+                {item.product?.productName || item.product || "-"}
+              </td>
+              {isGst && (
+                <td className="center-cell">
+                  {item.hsnCode || item.product?.hsnCode || "-"}
+                </td>
+              )}
+              {isGst && (
+                <td className="center-cell">
+                  {formatCompactNumber(item.gstRate)}
+                </td>
+              )}
+              <td className="center-cell">
+                {formatCompactNumber(item.width)} x {formatCompactNumber(item.length)}
+              </td>
+              <td className="center-cell">{formatCompactNumber(sqFt)}</td>
+              <td className="center-cell">{formatCompactNumber(quantity)}</td>
+              <td className="rate-cell">{formatNumber(item.selectedRate)}</td>
+              <td className="amount-cell">{formatNumber(amount)}</td>
+            </tr>
+          );
+        })}
+
+        {Array.from({ length: blankRows }).map((_, idx) => (
+          <BlankRow key={`blank-${idx}`} isGst={isGst} />
+        ))}
+      </tbody>
+      {showPageTotal && (
+        <tfoot>
+          <tr>
+            <td />
+            <td>Total Taxable Amount</td>
+            {isGst && <td />}
+            {isGst && <td />}
+            <td />
+            <td />
+            <td />
+            <td />
+            <td className="amount-cell">{formatNumber(invoice?.subTotal)}</td>
+          </tr>
+        </tfoot>
+      )}
+    </table>
+  );
+};
+
+const BlankRow = ({ isGst }) => (
+  <tr>
+    <td />
+    <td />
+    {isGst && <td />}
+    {isGst && <td />}
+    <td />
+    <td />
+    <td />
+    <td />
+    <td />
+  </tr>
+);
+
+const InvoiceFooter = ({
+  amountInWords,
+  grandTotalRounded,
+  invoice,
+  isGst,
+  roundOff,
+  shop,
+  taxBreakup,
+  termsList,
+}) => (
+  <div className="invoice-footer">
+    <div
+      className="invoice-footer-grid"
+      style={{
+        gridTemplateColumns: isGst ? "45% 31% 24%" : "38% 38% 24%",
+      }}
+    >
+      <div className="invoice-footer-cell">
+        {isGst && (
+          <table className="invoice-tax-table">
+            <thead>
+              <tr>
+                <th>GST</th>
+                <th>Taxable</th>
+                <th>CGST</th>
+                <th>SGST</th>
+              </tr>
+            </thead>
+            <tbody>
+              {taxBreakup.map((row) => (
+                <tr key={row.rate}>
+                  <td style={{ textAlign: "center", fontWeight: 800 }}>
+                    {formatCompactNumber(row.rate)}%
+                  </td>
+                  <td style={{ textAlign: "right" }}>{formatNumber(row.taxable)}</td>
+                  <td style={{ textAlign: "right" }}>{formatNumber(row.gstAmount / 2)}</td>
+                  <td style={{ textAlign: "right" }}>{formatNumber(row.gstAmount / 2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        <span className="invoice-section-title">Terms & Conditions</span>
+        <ol className="invoice-terms">
+          {termsList.map((term) => (
+            <li key={term}>{term}</li>
+          ))}
+        </ol>
+      </div>
+
+      <div className="invoice-footer-cell">
+        <span className="invoice-section-title">Bank Details</span>
+        <div>A/c Name: <strong>{shop.accountHolderName}</strong></div>
+        <div>A/c No.: <strong>{shop.accountNumber}</strong></div>
+        <div>Bank: <strong>{shop.bankName}</strong></div>
+        <div>Branch: <strong>{shop.bankBranch}</strong></div>
+        <div>IFSC: <strong>{shop.ifscCode}</strong></div>
+        {!isGst && (
+          <div className="invoice-payment-qr">
+            <img src={ORDER_PAYMENT_QR} alt="Scan QR to pay" />
+            <div>
+              <strong>Scan to Pay</strong>
+              <span>UPI: {shop.paymentUpiId}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="invoice-footer-cell">
+        <div className="invoice-total-row">
+          <span>Subtotal</span>
+          <span>{formatNumber(invoice?.subTotal)}</span>
+        </div>
+        {isGst && (
+          <>
+            <div className="invoice-total-row">
+              <span>CGST</span>
+              <span>{formatNumber(toNumber(invoice?.totalGST) / 2)}</span>
+            </div>
+            <div className="invoice-total-row">
+              <span>SGST</span>
+              <span>{formatNumber(toNumber(invoice?.totalGST) / 2)}</span>
+            </div>
+            <div className="invoice-total-row">
+              <span>Total GST</span>
+              <span>{formatNumber(invoice?.totalGST)}</span>
+            </div>
+          </>
+        )}
+        {Math.abs(roundOff) >= 0.01 && (
+          <div className="invoice-total-row">
+            <span>Round Off</span>
+            <span>{formatNumber(roundOff)}</span>
+          </div>
+        )}
+        <div className="invoice-total-row net">
+          <span>Net Total</span>
+          <span>{formatNumber(grandTotalRounded)}</span>
+        </div>
+      </div>
+    </div>
+
+    <div className="invoice-signature-row">
+      <div className="invoice-amount-words">
+        <span className="invoice-muted-label">Amount Chargeable in Words</span>
+        <div>
+          <strong>Rs. {amountInWords} Only</strong>
+        </div>
+      </div>
+      <div className="invoice-signature">
+        <div>For {shop.shopName}</div>
+        <img src="/signature.png" alt="Authorized signature" />
+        <div>Proprietor / Authorised Signatory</div>
+      </div>
+    </div>
+  </div>
+);
+
+const formatDate = (dateString) => {
+  if (!dateString) return "-";
+  const date = new Date(dateString);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+const formatNumber = (value) =>
+  toNumber(value).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+const formatCompactNumber = (value) => {
+  const numericValue = toNumber(value);
+  return Number.isInteger(numericValue)
+    ? String(numericValue)
+    : numericValue.toFixed(2);
 };
 
 export default PrintInvoice;

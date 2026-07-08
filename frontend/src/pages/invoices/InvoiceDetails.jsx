@@ -1,6 +1,6 @@
-import { useEffect, useState, useContext } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Printer, MessageCircle, FileCheck, FileText, Trash2 } from "lucide-react";
+import { useContext, useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, FileCheck, FileText, Pencil, Printer, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import API from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
@@ -32,35 +32,6 @@ const InvoiceDetails = () => {
 
     getInvoiceAndSettings();
   }, [id]);
-
-  // ✅ WhatsApp Send (Free — wa.me link)
-  const handleWhatsApp = () => {
-    if (!invoice) return;
-    const phone = invoice?.farmer?.mobileNumber?.replace(/\D/g, "");
-    if (!phone) { alert("Customer ka mobile number nahi mila."); return; }
-
-    const isGst = invoice?.documentType !== "order" && invoice?.gstEnabled !== false;
-    const docLabel = isGst ? "Invoice" : "Order";
-
-    const date = new Date(invoice?.createdAt).toLocaleDateString("en-IN", {
-      day: "2-digit", month: "long", year: "numeric",
-    });
-    const productLines = invoice?.products
-      ?.map((item) => {
-        const sqFt = item.sqFt ?? toNumber(item.length) * toNumber(item.width);
-        const amt = item.baseAmount ?? sqFt * toNumber(item.selectedRate) * toNumber(item.quantity, 1);
-        return `• ${item.product?.productName} - ${sqFt} sqft @ ₹${item.selectedRate} = ₹${Math.round(amt).toLocaleString("en-IN")}`;
-      })
-      .join("\n");
-
-    const gstLine = isGst
-      ? `🏷️ GST: ₹${Math.round(toNumber(invoice?.totalGST)).toLocaleString("en-IN")}\n`
-      : "";
-
-    const msg = `🧾 *${docLabel} #${invoice?.invoiceNumber}*\n📅 Date: ${date}\n👤 Customer: ${invoice?.farmer?.name}\n📍 Area: ${invoice?.farmer?.village}\n\n📦 *Items:*\n${productLines}\n\n💰 Subtotal: ₹${Math.round(toNumber(invoice?.subTotal)).toLocaleString("en-IN")}\n${gstLine}✅ *Grand Total: ₹${Math.round(toNumber(invoice?.grandTotal)).toLocaleString("en-IN")}*\n\n_Thank you! 🌾_`;
-
-    window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`, "_blank");
-  };
 
   const handleDelete = async () => {
     if (!invoice) return;
@@ -108,7 +79,7 @@ const InvoiceDetails = () => {
             <ArrowLeft size={16} />
             Back to Invoices
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-black text-slate-950">
               {docLabel} #{invoice.invoiceNumber}
             </h1>
@@ -134,16 +105,14 @@ const InvoiceDetails = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* WhatsApp Button */}
-          <button
-            onClick={handleWhatsApp}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-500 px-5 py-3 font-black text-white shadow-lg shadow-green-200 hover:bg-green-600"
+          <Link
+            to={`/invoices/edit/${invoice._id}`}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 py-3 font-black text-white shadow-lg shadow-amber-200 hover:bg-amber-600"
           >
-            <MessageCircle size={18} />
-            Send on WhatsApp
-          </button>
+            <Pencil size={18} />
+            Edit {docLabel}
+          </Link>
 
-          {/* Print / View Invoice */}
           <Link
             to={`/invoices/print/${invoice._id}`}
             className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 font-black text-white shadow-lg hover:opacity-90 ${
@@ -153,10 +122,9 @@ const InvoiceDetails = () => {
             }`}
           >
             <Printer size={18} />
-            Print {docLabel}
+            Print / Send PDF
           </Link>
 
-          {/* Delete Invoice Button (Admin Only) */}
           {user?.role !== "operator" && (
             <button
               onClick={handleDelete}
@@ -169,7 +137,7 @@ const InvoiceDetails = () => {
         </div>
       </div>
 
-      <section className={`grid grid-cols-1 gap-5 ${isGst && settings ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+      <section className={`grid grid-cols-1 gap-5 ${isGst && settings ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
         {isGst && settings && (
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-xs font-black uppercase tracking-widest text-slate-500">
@@ -188,7 +156,7 @@ const InvoiceDetails = () => {
               Email: {settings.shopEmail || "-"}
             </p>
             {settings.gstNumber && (
-              <p className="mt-2 text-xs font-black text-blue-600 uppercase tracking-widest">
+              <p className="mt-2 text-xs font-black uppercase tracking-widest text-blue-600">
                 GSTIN: {settings.gstNumber}
               </p>
             )}
@@ -260,7 +228,7 @@ const InvoiceDetails = () => {
                 const amount =
                   item.baseAmount ??
                   sqFt * toNumber(item.selectedRate) * toNumber(item.quantity, 1);
-                const hsnCode = item.hsnCode || item.product?.hsnCode || "—";
+                const hsnCode = item.hsnCode || item.product?.hsnCode || "-";
 
                 return (
                   <tr key={item._id || item.product?._id}>
@@ -312,11 +280,11 @@ const InvoiceDetails = () => {
           {isGst && (
             <>
               <div className="flex justify-between text-sm font-bold text-slate-600">
-                <span>CGST (50%)</span>
+                <span>CGST</span>
                 <span>{formatCurrency(toNumber(invoice.totalGST) / 2)}</span>
               </div>
               <div className="flex justify-between text-sm font-bold text-slate-600">
-                <span>SGST (50%)</span>
+                <span>SGST</span>
                 <span>{formatCurrency(toNumber(invoice.totalGST) / 2)}</span>
               </div>
               <div className="flex justify-between text-sm font-bold text-slate-600">
