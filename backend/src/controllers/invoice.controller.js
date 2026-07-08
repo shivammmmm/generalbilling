@@ -342,6 +342,12 @@ export const updateInvoice = async (req, res) => {
       invoiceDate,
     } = req.body;
 
+    if (!products.length) {
+      return res.status(400).json({
+        message: "At least one invoice item is required",
+      });
+    }
+
     const invoice = await Invoice.findById(id);
     if (!invoice) {
       return res.status(404).json({
@@ -349,11 +355,13 @@ export const updateInvoice = async (req, res) => {
       });
     }
 
-    // 1. Revert previous farmer due & transaction
     if (invoice.billingType === "credit") {
       const oldFarmer = await Farmer.findById(invoice.farmer);
       if (oldFarmer) {
-        oldFarmer.dueAmount = Math.max(0, oldFarmer.dueAmount - Number(invoice.grandTotal || 0));
+        oldFarmer.dueAmount = Math.max(
+          0,
+          oldFarmer.dueAmount - Number(invoice.grandTotal || 0)
+        );
         await oldFarmer.save();
       }
 
@@ -364,7 +372,6 @@ export const updateInvoice = async (req, res) => {
       });
     }
 
-    // 2. Fetch new / same customer details
     const farmer = await Farmer.findById(farmerId || invoice.farmer);
     if (!farmer) {
       return res.status(404).json({
@@ -379,7 +386,6 @@ export const updateInvoice = async (req, res) => {
     let totalGST = 0;
     const invoiceProducts = [];
 
-    // 3. Process products list
     for (const item of products) {
       const product = await Product.findById(item.product);
       if (!product) {
@@ -388,15 +394,11 @@ export const updateInvoice = async (req, res) => {
         });
       }
 
-      let selectedRate = 0;
-      if (activeRateType === "Rate A") {
-        selectedRate = product.cashRate;
-      } else if (activeRateType === "Rate B") {
+      let selectedRate = product.cashRate;
+      if (activeRateType === "Rate B") {
         selectedRate = product.creditRate;
       } else if (activeRateType === "Rate C") {
         selectedRate = product.wholesaleRate;
-      } else {
-        selectedRate = product.cashRate;
       }
 
       if (item.selectedRate !== undefined && item.selectedRate !== "") {
@@ -408,10 +410,16 @@ export const updateInvoice = async (req, res) => {
       const width = Number(item.width) || 0;
       const sqFt = length * width;
 
+      if (!product._id || quantity <= 0 || length <= 0 || width <= 0 || selectedRate <= 0) {
+        return res.status(400).json({
+          message: "Invoice items must have valid product, size, quantity, and rate",
+        });
+      }
+
       const gstRate = gstEnabled
-        ? (item.gstRate !== undefined && item.gstRate !== ""
-            ? Number(item.gstRate)
-            : product.gstRate || 0)
+        ? item.gstRate !== undefined && item.gstRate !== ""
+          ? Number(item.gstRate)
+          : product.gstRate || 0
         : 0;
 
       const itemTotal = sqFt * selectedRate * quantity;
@@ -437,13 +445,8 @@ export const updateInvoice = async (req, res) => {
     }
 
     const grandTotal = subTotal + totalGST;
+    const paymentStatus = billingType === "credit" ? "pending" : "paid";
 
-    let paymentStatus = "paid";
-    if (billingType === "credit") {
-      paymentStatus = "pending";
-    }
-
-    // 4. Apply new farmer due & transaction
     if (billingType === "credit") {
       farmer.dueAmount += grandTotal;
       await farmer.save();
@@ -456,7 +459,6 @@ export const updateInvoice = async (req, res) => {
       });
     }
 
-    // 5. Update database record
     invoice.farmer = farmer._id;
     invoice.billingType = billingType;
     invoice.rateType = activeRateType;

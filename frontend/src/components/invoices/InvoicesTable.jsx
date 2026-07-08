@@ -5,7 +5,6 @@ import {
   IndianRupee,
   Printer,
   Receipt,
-  Trash2,
   User,
   FileCheck,
   FileText,
@@ -13,7 +12,7 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "../../utils/billing";
 
-const InvoiceTable = ({ invoices, deleteInvoice }) => {
+const InvoiceTable = ({ invoices }) => {
   return (
     <>
       {/* Desktop Table Layout (visible on md screens and up) */}
@@ -139,6 +138,13 @@ const InvoiceTable = ({ invoices, deleteInvoice }) => {
                             <Eye size={18} />
                           </Link>
                           <Link
+                            to={`/invoices/edit/${invoice._id}`}
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 transition hover:bg-amber-600 hover:text-white"
+                            title="Edit"
+                          >
+                            <Pencil size={18} />
+                          </Link>
+                          <Link
                             to={`/invoices/print/${invoice._id}`}
                             className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white transition hover:bg-blue-600"
                             title="Print"
@@ -243,6 +249,13 @@ const InvoiceTable = ({ invoices, deleteInvoice }) => {
                       title="View"
                     >
                       <Eye size={16} />
+                    </Link>
+                    <Link
+                      to={`/invoices/edit/${invoice._id}`}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600 transition active:bg-amber-600 active:text-white"
+                      title="Edit"
+                    >
+                      <Pencil size={16} />
                     </Link>
                     <Link
                       to={`/invoices/print/${invoice._id}`}
