@@ -46,7 +46,7 @@ const A4_PRINT_STYLE = `
 
 .invoice-page {
   width: 210mm;
-  min-height: 297mm;
+  height: 297mm;
   padding: 8mm;
   box-sizing: border-box;
   background: #ffffff;
@@ -63,7 +63,7 @@ const A4_PRINT_STYLE = `
 }
 
 .invoice-sheet {
-  min-height: 281mm;
+  height: 281mm;
   border: 1.4px solid #111827;
   display: flex;
   flex-direction: column;
@@ -177,13 +177,23 @@ const A4_PRINT_STYLE = `
   display: flex;
   flex: 1;
   flex-direction: column;
+  min-height: 0;
+}
+
+.invoice-table-area {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .invoice-table {
   width: 100%;
+  flex: 1;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: 9.3px;
+  height: 100%;
 }
 
 .invoice-table th {
@@ -230,6 +240,11 @@ const A4_PRINT_STYLE = `
   font-weight: 900;
 }
 
+.invoice-filler-row td {
+  height: auto;
+  border-bottom: 0;
+}
+
 .invoice-continued {
   margin-top: 6px;
   color: #64748b;
@@ -239,8 +254,9 @@ const A4_PRINT_STYLE = `
 }
 
 .invoice-footer {
-  margin-top: auto;
+  margin-top: 0;
   border-top: 1.2px solid #111827;
+  flex: 0 0 auto;
 }
 
 .invoice-footer-grid {
@@ -321,6 +337,11 @@ const A4_PRINT_STYLE = `
   min-height: 26mm;
 }
 
+.invoice-signature-row.order-only {
+  display: block;
+  min-height: 12mm;
+}
+
 .invoice-amount-words {
   font-size: 10px;
   line-height: 1.4;
@@ -344,15 +365,14 @@ const A4_PRINT_STYLE = `
 .invoice-payment-qr {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-top: 7px;
-  border-top: 1px solid #d7dde7;
-  padding-top: 7px;
+  justify-content: center;
+  gap: 9px;
+  height: 100%;
 }
 
 .invoice-payment-qr img {
-  width: 70px;
-  height: 70px;
+  width: 84px;
+  height: 84px;
   border: 1px solid #111827;
   object-fit: contain;
 }
@@ -713,19 +733,21 @@ const PrintInvoice = () => {
                   />
 
                   <div className="invoice-page-body">
-                    <ItemsTable
-                      invoice={invoice}
-                      isGst={isGst}
-                      pageItems={pageItems}
-                      serialOffset={serialOffset}
-                      showPageTotal={isLastPage}
-                    />
+                    <div className="invoice-table-area">
+                      <ItemsTable
+                        invoice={invoice}
+                        isGst={isGst}
+                        pageItems={pageItems}
+                        serialOffset={serialOffset}
+                        showPageTotal={isLastPage}
+                      />
 
-                    {!isLastPage && (
-                      <div className="invoice-continued">
-                        Continued on next page
-                      </div>
-                    )}
+                      {!isLastPage && (
+                        <div className="invoice-continued">
+                          Continued on next page
+                        </div>
+                      )}
+                    </div>
 
                     {isLastPage && (
                       <InvoiceFooter
@@ -770,17 +792,21 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
         </span>
       </div>
 
-      <div className="invoice-title">
-        <h1>{shop.shopName}</h1>
-        <p>{shop.shopAddress}</p>
-      </div>
+      {isGst && (
+        <>
+          <div className="invoice-title">
+            <h1>{shop.shopName}</h1>
+            <p>{shop.shopAddress}</p>
+          </div>
 
-      <div className="invoice-business-line">{shop.businessLine}</div>
+          <div className="invoice-business-line">{shop.businessLine}</div>
 
-      <div className="invoice-contact-line">
-        Mobile: {shop.shopMobile}
-        {shop.shopEmail ? ` | Email: ${shop.shopEmail}` : ""}
-      </div>
+          <div className="invoice-contact-line">
+            Mobile: {shop.shopMobile}
+            {shop.shopEmail ? ` | Email: ${shop.shopEmail}` : ""}
+          </div>
+        </>
+      )}
 
       <div className="invoice-party-grid">
         <div className="invoice-buyer-box">
@@ -817,8 +843,6 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
 };
 
 const ItemsTable = ({ invoice, isGst, pageItems, serialOffset, showPageTotal }) => {
-  const blankRows = Math.max(0, PAGE_ITEM_LIMIT - pageItems.length);
-
   return (
     <table className="invoice-table">
       <colgroup>
@@ -879,9 +903,7 @@ const ItemsTable = ({ invoice, isGst, pageItems, serialOffset, showPageTotal }) 
           );
         })}
 
-        {Array.from({ length: blankRows }).map((_, idx) => (
-          <BlankRow key={`blank-${idx}`} isGst={isGst} />
-        ))}
+        <FillerRow isGst={isGst} />
       </tbody>
       {showPageTotal && (
         <tfoot>
@@ -902,8 +924,8 @@ const ItemsTable = ({ invoice, isGst, pageItems, serialOffset, showPageTotal }) 
   );
 };
 
-const BlankRow = ({ isGst }) => (
-  <tr>
+const FillerRow = ({ isGst }) => (
+  <tr className="invoice-filler-row">
     <td />
     <td />
     {isGst && <td />}
@@ -968,13 +990,16 @@ const InvoiceFooter = ({
       </div>
 
       <div className="invoice-footer-cell">
-        <span className="invoice-section-title">Bank Details</span>
-        <div>A/c Name: <strong>{shop.accountHolderName}</strong></div>
-        <div>A/c No.: <strong>{shop.accountNumber}</strong></div>
-        <div>Bank: <strong>{shop.bankName}</strong></div>
-        <div>Branch: <strong>{shop.bankBranch}</strong></div>
-        <div>IFSC: <strong>{shop.ifscCode}</strong></div>
-        {!isGst && (
+        {isGst ? (
+          <>
+            <span className="invoice-section-title">Bank Details</span>
+            <div>A/c Name: <strong>{shop.accountHolderName}</strong></div>
+            <div>A/c No.: <strong>{shop.accountNumber}</strong></div>
+            <div>Bank: <strong>{shop.bankName}</strong></div>
+            <div>Branch: <strong>{shop.bankBranch}</strong></div>
+            <div>IFSC: <strong>{shop.ifscCode}</strong></div>
+          </>
+        ) : (
           <div className="invoice-payment-qr">
             <img src={ORDER_PAYMENT_QR} alt="Scan QR to pay" />
             <div>
@@ -1019,18 +1044,20 @@ const InvoiceFooter = ({
       </div>
     </div>
 
-    <div className="invoice-signature-row">
+    <div className={`invoice-signature-row ${isGst ? "" : "order-only"}`}>
       <div className="invoice-amount-words">
         <span className="invoice-muted-label">Amount Chargeable in Words</span>
         <div>
           <strong>Rs. {amountInWords} Only</strong>
         </div>
       </div>
-      <div className="invoice-signature">
-        <div>For {shop.shopName}</div>
-        <img src="/signature.png" alt="Authorized signature" />
-        <div>Proprietor / Authorised Signatory</div>
-      </div>
+      {isGst && (
+        <div className="invoice-signature">
+          <div>For {shop.shopName}</div>
+          <img src="/signature.png" alt="Authorized signature" />
+          <div>Proprietor / Authorised Signatory</div>
+        </div>
+      )}
     </div>
   </div>
 );
