@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  CalendarCheck,
   CheckCircle2,
   Clock3,
   FileText,
@@ -25,19 +24,22 @@ const isSameDay = (value, date) => {
 const Dashboard = () => {
   const [invoices, setInvoices] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [accountingSummary, setAccountingSummary] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const getDashboardData = async () => {
       try {
-        const [invoiceRes, customerRes] = await Promise.all([
+        const [invoiceRes, customerRes, reportRes] = await Promise.all([
           API.get("/invoices"),
           API.get("/farmers"),
+          API.get("/reports/dashboard"),
         ]);
 
         setInvoices(invoiceRes.data.invoices || []);
         setCustomers(customerRes.data.farmers || []);
+        setAccountingSummary(reportRes.data.dashboard || {});
       } catch (err) {
         setError(
           err.response?.data?.message ||
@@ -86,39 +88,51 @@ const Dashboard = () => {
       ).length,
       recentInvoices: invoices.slice(0, 6),
       topCustomers,
+      totalSales: Number(accountingSummary.totalSales || 0),
+      cashSales: Number(accountingSummary.cashSales || 0),
+      creditSales: Number(accountingSummary.creditSales || 0),
+      outstandingAmount: Number(accountingSummary.outstandingAmount || 0),
+      totalReceipts: Number(accountingSummary.totalReceipts || 0),
+      totalCustomers: Number(accountingSummary.totalCustomers || customers.length),
     };
-  }, [customers, invoices]);
+  }, [accountingSummary, customers, invoices]);
 
   const cards = [
     {
-      label: "Today's Sales",
-      value: formatCurrency(dashboard.todaySales),
+      label: "Total Sales",
+      value: formatCurrency(dashboard.totalSales || dashboard.monthlySales),
       icon: <IndianRupee size={22} />,
       color: "bg-blue-50 text-blue-700",
     },
     {
-      label: "Today's Bills",
-      value: dashboard.todayOrders,
-      icon: <CalendarCheck size={22} />,
+      label: "Cash Sales",
+      value: formatCurrency(dashboard.cashSales),
+      icon: <CheckCircle2 size={22} />,
       color: "bg-indigo-50 text-indigo-700",
     },
     {
-      label: "Monthly Sales",
-      value: formatCurrency(dashboard.monthlySales),
+      label: "Credit Sales",
+      value: formatCurrency(dashboard.creditSales),
       icon: <TrendingUp size={22} />,
       color: "bg-emerald-50 text-emerald-700",
     },
     {
-      label: "Total GST Invoices",
-      value: dashboard.totalGSTInvoices,
-      icon: <FileText size={22} />,
+      label: "Outstanding",
+      value: formatCurrency(dashboard.outstandingAmount),
+      icon: <Clock3 size={22} />,
+      color: "bg-orange-50 text-orange-700",
+    },
+    {
+      label: "Total Receipts",
+      value: formatCurrency(dashboard.totalReceipts),
+      icon: <Receipt size={22} />,
       color: "bg-blue-50 text-blue-700",
     },
     {
-      label: "Total Non-GST Orders",
-      value: dashboard.totalOrders,
-      icon: <FileText size={22} />,
-      color: "bg-orange-50 text-orange-700",
+      label: "Total Customers",
+      value: dashboard.totalCustomers,
+      icon: <Users size={22} />,
+      color: "bg-slate-100 text-slate-700",
     },
   ];
 

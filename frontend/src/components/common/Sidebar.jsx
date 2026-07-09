@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Boxes,
+  Building2,
   CreditCard,
   FolderTree,
   LayoutDashboard,
@@ -20,11 +21,12 @@ import { AuthContext } from "../../context/AuthContext";
 const menuItems = [
   { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={21} /> },
   { name: "Customers", path: "/farmers", icon: <Users size={21} /> },
+  { name: "Vendors", path: "/vendors", icon: <Building2 size={21} /> },
   { name: "Products", path: "/products", icon: <Boxes size={21} /> },
   { name: "Categories", path: "/categories", icon: <FolderTree size={21} /> },
   { name: "Create Bill", path: "/billing", icon: <ShoppingBag size={21} /> },
   { name: "Invoices & Orders", path: "/invoices", icon: <Receipt size={21} /> },
-  { name: "Payments", path: "/transactions", icon: <CreditCard size={21} /> },
+  { name: "Receipts", path: "/transactions", icon: <CreditCard size={21} /> },
   { name: "Reports", path: "/reports", icon: <BarChart3 size={21} /> },
   { name: "Users", path: "/users", icon: <UserCog size={21} /> },
   { name: "Settings", path: "/settings", icon: <Settings size={21} /> },

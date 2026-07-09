@@ -13,7 +13,7 @@ const PaymentTransaction = () => {
     try {
       setLoading(true);
       await API.post("/transactions/payment", formData);
-      toast.success("Payment Recorded Successfully");
+      toast.success("Receipt Voucher Recorded Successfully");
       navigate("/transactions");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to add payment");
@@ -34,9 +34,9 @@ const PaymentTransaction = () => {
         <div>
           <div className="flex items-center gap-2 text-green-600 text-xs font-bold uppercase tracking-wider mb-1">
             <ArrowDownLeft size={14} />
-            <span>New Payment Entry</span>
+            <span>New Receipt Voucher</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-800">Record Customer Payment</h1>
+          <h1 className="text-3xl font-bold text-gray-800">Receive Customer Payment</h1>
         </div>
       </div>
 

@@ -8,6 +8,7 @@ import {
   getPaymentStatus,
   recalculateCustomerLedger,
 } from "../utils/customerLedger.js";
+import { generateCustomerVoucherNumber } from "../utils/voucherNumber.js";
 
 const normalizeAmount = (value, fallback = 0) => {
   const parsed = Number(value);
@@ -28,12 +29,16 @@ const createInvoiceLedgerEntries = async ({
   paymentMode = "cash",
   dueDate,
 }) => {
+  const entryDate = invoice.createdAt || new Date();
+
   await Transaction.create({
     farmer: farmerId,
     type: "credit",
     amount: invoice.grandTotal,
     invoice: invoice._id,
     invoiceNumber: invoice.invoiceNumber,
+    voucherNo: await generateCustomerVoucherNumber("credit"),
+    voucherDate: entryDate,
     description: `Invoice ${invoice.invoiceNumber}`,
     dueDate,
   });
@@ -45,6 +50,8 @@ const createInvoiceLedgerEntries = async ({
       amount: receivedAmount,
       invoice: invoice._id,
       invoiceNumber: invoice.invoiceNumber,
+      voucherNo: await generateCustomerVoucherNumber("payment"),
+      voucherDate: entryDate,
       paymentMode,
       description: `Received against Invoice ${invoice.invoiceNumber}`,
     });
@@ -85,6 +92,7 @@ export const createInvoice = async (req, res) => {
       receivedAmount = 0,
       paymentMode = "cash",
       products = [],
+      invoiceDate,
     } = req.body;
 
     // documentType determines GST on/off
@@ -242,7 +250,7 @@ export const createInvoice = async (req, res) => {
 
       paymentStatus,
 
-      createdAt: req.body.invoiceDate ? new Date(req.body.invoiceDate) : undefined,
+      createdAt: invoiceDate ? new Date(invoiceDate) : undefined,
     });
 
     await createInvoiceLedgerEntries({

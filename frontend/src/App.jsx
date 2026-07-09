@@ -13,6 +13,8 @@ import Categories from "./pages/categories/Categories";
 import Transactions from "./pages/transactions/Transactions";
 import PaymentTransaction from "./pages/transactions/PaymentTransaction";
 import CreditTransaction from "./pages/transactions/CreditTransaction";
+import Vendors from "./pages/vendors/Vendors";
+import VendorDetails from "./pages/vendors/VendorDetails";
 import Invoices from "./pages/invoices/Invoices";
 import InvoiceDetails from "./pages/invoices/InvoiceDetails";
 import PrintInvoice from "./pages/invoices/PrintInvoice";
@@ -31,6 +33,8 @@ const protectedRoutes = [
   { path: "/farmers/add", element: <AddCustomer /> },
   { path: "/farmers/edit/:id", element: <EditCustomer /> },
   { path: "/farmers/:id", element: <CustomerDetails /> },
+  { path: "/vendors", element: <Vendors /> },
+  { path: "/vendors/:id", element: <VendorDetails /> },
   { path: "/products", element: <Products /> },
   { path: "/products/add", element: <AddProduct /> },
   { path: "/products/edit/:id", element: <EditProduct /> },
