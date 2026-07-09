@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
   FileCheck,
   FilePlus2,
   FileText,
-  IndianRupee,
   LayoutList,
   Receipt,
-  WalletCards,
+  Search,
+  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import API from "../../services/api";
@@ -17,6 +17,7 @@ import { formatCurrency } from "../../utils/billing";
 
 const Invoices = () => {
   const [invoices, setInvoices] = useState([]);
+  const [keyword, setKeyword] = useState("");
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("all"); // "all" | "gst_invoice" | "order"
   const [stats, setStats] = useState({
@@ -55,20 +56,42 @@ const Invoices = () => {
 
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     getInvoices();
   }, []);
 
-  // Filtered list based on tab
-  const filteredInvoices = invoices.filter((inv) => {
-    if (filterType === "all") return true;
-    if (filterType === "gst_invoice") {
-      return inv.documentType === "gst_invoice" || (inv.documentType == null && inv.gstEnabled !== false);
-    }
-    if (filterType === "order") {
-      return inv.documentType === "order";
-    }
-    return true;
-  });
+  const filteredInvoices = useMemo(() => {
+    const byType = invoices.filter((inv) => {
+      if (filterType === "all") return true;
+      if (filterType === "gst_invoice") {
+        return inv.documentType === "gst_invoice" || (inv.documentType == null && inv.gstEnabled !== false);
+      }
+      if (filterType === "order") {
+        return inv.documentType === "order";
+      }
+      return true;
+    });
+
+    const search = keyword.trim().toLowerCase();
+    if (!search) return byType;
+
+    return byType.filter((invoice) => {
+      const isGst =
+        invoice.documentType !== "order" && invoice.gstEnabled !== false;
+
+      return [
+        invoice.invoiceNumber,
+        isGst ? "GST Invoice" : "Order",
+        invoice.farmer?.name,
+        invoice.farmer?.mobileNumber,
+        invoice.paymentStatus,
+        invoice.grandTotal,
+        invoice.balanceDue,
+      ]
+        .filter((value) => value !== null && value !== undefined)
+        .some((value) => String(value).toLowerCase().includes(search));
+    });
+  }, [filterType, invoices, keyword]);
 
   const gstCount = invoices.filter(
     (inv) => inv.documentType === "gst_invoice" || (inv.documentType == null && inv.gstEnabled !== false)
@@ -180,6 +203,32 @@ const Invoices = () => {
           <FileText size={16} />
           Orders ({orderCount})
         </button>
+      </div>
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="relative">
+          <Search
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+            size={18}
+          />
+          <input
+            type="text"
+            placeholder="Search invoices by number, customer, mobile, or status"
+            className="input-field pl-11 pr-12"
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+          />
+          {keyword && (
+            <button
+              type="button"
+              onClick={() => setKeyword("")}
+              className="absolute right-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              aria-label="Clear invoice search"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
