@@ -5,6 +5,7 @@ import {
   buildCustomerStatement,
   recalculateCustomerLedger,
 } from "../utils/customerLedger.js";
+import { generateCustomerVoucherNumber } from "../utils/voucherNumber.js";
 
 
 
@@ -18,6 +19,7 @@ export const createCreditTransaction = async (req, res) => {
       description,
       dueDate,
       products,
+      voucherDate,
     } = req.body;
 
     // farmer check
@@ -75,6 +77,8 @@ export const createCreditTransaction = async (req, res) => {
       description,
       dueDate,
       products,
+      voucherNo: await generateCustomerVoucherNumber("credit"),
+      voucherDate: voucherDate ? new Date(voucherDate) : new Date(),
     });
 
     // update due amount
@@ -107,6 +111,8 @@ export const createPaymentTransaction = async (req, res) => {
       amount,
       paymentMode,
       description,
+      voucherNo,
+      voucherDate,
     } = req.body;
 
     const farmer = await Farmer.findById(farmerId);
@@ -139,8 +145,10 @@ export const createPaymentTransaction = async (req, res) => {
       farmer: farmerId,
       type: "payment",
       amount: paymentAmount,
-      paymentMode,
+      paymentMode: paymentMode || "cash",
       description,
+      voucherNo: voucherNo || await generateCustomerVoucherNumber("payment"),
+      voucherDate: voucherDate ? new Date(voucherDate) : new Date(),
     });
 
     await recalculateCustomerLedger(farmer._id);
@@ -184,6 +192,8 @@ export const createInterestTransaction = async (req, res) => {
       type: "interest",
       amount,
       description,
+      voucherNo: await generateCustomerVoucherNumber("interest"),
+      voucherDate: new Date(),
     });
 
     // add due amount

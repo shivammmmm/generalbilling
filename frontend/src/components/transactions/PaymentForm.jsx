@@ -20,6 +20,7 @@ const PaymentForm = ({ onSubmit, loading }) => {
     farmerId: "",
     amount: "",
     paymentMode: "cash",
+    voucherDate: new Date().toISOString().slice(0, 10),
     description: "",
   });
 
@@ -63,7 +64,7 @@ const PaymentForm = ({ onSubmit, loading }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.farmerId) return alert("Please select a customer");
-    if (selectedCustomer && parseFloat(formData.amount) > selectedCustomer.dueAmount) {
+    if (selectedCustomer && parseFloat(formData.amount) > Number(selectedCustomer.dueAmount || 0)) {
       alert("Payment amount exceeds due amount");
       return;
     }
@@ -131,8 +132,20 @@ const PaymentForm = ({ onSubmit, loading }) => {
           <div className="space-y-6">
             <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-2">
               <IndianRupee size={20} className="text-green-600" />
-              Payment Details
+              Receipt Voucher
             </h3>
+
+            <div>
+              <label className={labelClasses}>Voucher Date</label>
+              <input
+                type="date"
+                name="voucherDate"
+                value={formData.voucherDate}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 font-bold text-slate-700 shadow-sm transition-all focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20"
+                required
+              />
+            </div>
 
             <div>
               <label className={labelClasses}>Amount to Pay</label>

@@ -255,7 +255,7 @@ const CustomerDetails = () => {
           <table className="w-full min-w-[760px] text-left">
             <thead className="bg-slate-50">
               <tr>
-                {["Date", "Invoice No.", "Debit", "Credit", "Running Balance"].map((heading) => (
+                {["Date", "Voucher Type", "Voucher No.", "Invoice No.", "Debit", "Credit", "Balance"].map((heading) => (
                   <th
                     key={heading}
                     className="px-5 py-4 text-xs font-black uppercase tracking-widest text-slate-500"
@@ -269,7 +269,7 @@ const CustomerDetails = () => {
               {history.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="5"
+                    colSpan="7"
                     className="px-5 py-12 text-center text-sm font-semibold text-slate-400"
                   >
                     No statement entries found.
@@ -280,6 +280,12 @@ const CustomerDetails = () => {
                   <tr key={item._id}>
                     <td className="px-5 py-4 text-sm font-semibold text-slate-600">
                       {new Date(item.date || item.createdAt).toLocaleDateString("en-IN")}
+                    </td>
+                    <td className="px-5 py-4 text-sm font-black capitalize text-blue-700">
+                      {item.voucherType || item.type || "-"}
+                    </td>
+                    <td className="px-5 py-4 text-sm font-semibold text-slate-600">
+                      {item.voucherNo || "-"}
                     </td>
                     <td className="px-5 py-4 text-sm font-semibold text-slate-600">
                       {item.invoiceNo || "-"}

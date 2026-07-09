@@ -62,13 +62,13 @@ const Transactions = () => {
       <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="mb-2 text-xs font-black uppercase tracking-[0.25em] text-blue-600">
-            Payments
+            Receipts
           </p>
           <h1 className="text-3xl font-black text-slate-950 sm:text-4xl">
             Payments
           </h1>
           <p className="mt-3 max-w-xl text-sm font-medium leading-6 text-slate-600">
-            Record payments received from customers and delete payment records
+            Record receipt vouchers from customers and delete receipt records
             when needed.
           </p>
         </div>
@@ -79,7 +79,7 @@ const Transactions = () => {
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-3 font-black text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
           >
             <ArrowDownLeft size={18} />
-            Add Payment
+            New Receipt
           </Link>
         </div>
       </div>
@@ -87,13 +87,13 @@ const Transactions = () => {
       <section className="grid grid-cols-1 gap-5 md:grid-cols-2">
         {[
           {
-            label: "Payment Records",
+            label: "Receipt Vouchers",
             value: transactions.length,
             icon: <CreditCard size={22} />,
             color: "bg-blue-50 text-blue-700",
           },
           {
-            label: "Payments Received",
+            label: "Total Receipts",
             value: formatCurrency(stats.total),
             icon: <IndianRupee size={22} />,
             color: "bg-blue-50 text-blue-700",

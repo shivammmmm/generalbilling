@@ -44,6 +44,9 @@ const Customers = () => {
         customer.name,
         customer.mobileNumber,
         customer.village,
+        customer.city,
+        customer.gstNumber,
+        customer.status,
         customer.defaultRateType,
       ]
         .filter(Boolean)

@@ -19,6 +19,12 @@ const farmerSchema = new mongoose.Schema(
       default: "",
     },
 
+    city: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     address: {
       type: String,
       default: "",
@@ -47,6 +53,17 @@ const farmerSchema = new mongoose.Schema(
     creditLimit: {
       type: Number,
       default: 0,
+    },
+
+    openingBalance: {
+      type: Number,
+      default: 0,
+    },
+
+    paymentTerms: {
+      type: String,
+      default: "",
+      trim: true,
     },
 
     dueAmount: {

@@ -1,6 +1,41 @@
 import Farmer from "../models/Farmer.js";
 import Invoice from "../models/Invoice.js";
 import Transaction from "../models/Transaction.js";
+import { recalculateCustomerLedger } from "../utils/customerLedger.js";
+import { generateCustomerVoucherNumber } from "../utils/voucherNumber.js";
+
+const upsertOpeningBalance = async (farmerId, openingBalance = 0) => {
+  const amount = Number(openingBalance) || 0;
+  const existing = await Transaction.findOne({
+    farmer: farmerId,
+    type: "opening",
+  });
+
+  if (amount <= 0) {
+    if (existing) {
+      await Transaction.findByIdAndDelete(existing._id);
+    }
+    return;
+  }
+
+  if (existing) {
+    existing.amount = amount;
+    existing.description = "Opening Balance";
+    existing.voucherNo = existing.voucherNo || await generateCustomerVoucherNumber("opening");
+    existing.voucherDate = existing.voucherDate || new Date();
+    await existing.save();
+    return;
+  }
+
+  await Transaction.create({
+    farmer: farmerId,
+    type: "opening",
+    amount,
+    voucherNo: await generateCustomerVoucherNumber("opening"),
+    voucherDate: new Date(),
+    description: "Opening Balance",
+  });
+};
 
 const attachCustomerStats = async (farmer) => {
   const [invoices, payments] = await Promise.all([
@@ -33,10 +68,13 @@ export const addFarmer = async (req, res) => {
       name,
       mobileNumber,
       village = "",
+      city = "",
       address = "",
       aadhaarNumber,
       gstNumber,
+      openingBalance = 0,
       creditLimit = 0,
+      paymentTerms = "",
       defaultRateType,
       status = "active",
     } = req.body;
@@ -65,13 +103,19 @@ export const addFarmer = async (req, res) => {
       name,
       mobileNumber,
       village,
+      city,
       address,
       aadhaarNumber,
       gstNumber,
+      openingBalance: Number(openingBalance) || 0,
       creditLimit,
+      paymentTerms,
       defaultRateType: defaultRateType || "Rate A",
       status,
     });
+
+    await upsertOpeningBalance(farmer._id, openingBalance);
+    await recalculateCustomerLedger(farmer._id);
 
     res.status(201).json({
       success: true,
@@ -148,6 +192,14 @@ export const updateFarmer = async (req, res) => {
         returnDocument: "after",
       }
     );
+
+    if (Object.prototype.hasOwnProperty.call(req.body, "openingBalance")) {
+      await upsertOpeningBalance(
+        updatedFarmer._id,
+        updatedFarmer.openingBalance
+      );
+      await recalculateCustomerLedger(updatedFarmer._id);
+    }
 
     res.status(200).json({
       success: true,

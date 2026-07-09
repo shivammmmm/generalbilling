@@ -2,6 +2,7 @@ import Invoice from "../models/Invoice.js";
 import Farmer from "../models/Farmer.js";
 import Product from "../models/Product.js";
 import Transaction from "../models/Transaction.js";
+import VendorTransaction from "../models/VendorTransaction.js";
 
 
 
@@ -459,6 +460,21 @@ export const dashboardSummary = async (req, res) => {
 
 
 
+    const cashSales = await Invoice.aggregate([
+      { $match: { billingType: "cash" } },
+      { $group: { _id: null, total: { $sum: "$grandTotal" } } },
+    ]);
+
+    const creditSales = await Invoice.aggregate([
+      { $match: { billingType: { $ne: "cash" } } },
+      { $group: { _id: null, total: { $sum: "$grandTotal" } } },
+    ]);
+
+    const totalReceipts = await Transaction.aggregate([
+      { $match: { type: "payment" } },
+      { $group: { _id: null, total: { $sum: "$amount" } } },
+    ]);
+
     // ================= RESPONSE =================
 
     res.status(200).json({
@@ -475,8 +491,23 @@ export const dashboardSummary = async (req, res) => {
         totalSales:
           totalSales[0]?.sales || 0,
 
+        cashSales:
+          cashSales[0]?.total || 0,
+
+        creditSales:
+          creditSales[0]?.total || 0,
+
         pendingPayments:
           pendingPayments[0]?.totalDue || 0,
+
+        outstandingAmount:
+          pendingPayments[0]?.totalDue || 0,
+
+        totalReceipts:
+          totalReceipts[0]?.total || 0,
+
+        totalCustomers:
+          totalFarmers,
 
         overdueBills:
           overdueBills.length,
@@ -497,5 +528,231 @@ export const dashboardSummary = async (req, res) => {
       message: error.message,
     });
 
+  }
+};
+
+export const outstandingReport = async (req, res) => {
+  try {
+    const customers = await Farmer.find({ dueAmount: { $gt: 0 } }).sort({
+      dueAmount: -1,
+    });
+
+    const rows = await Promise.all(
+      customers.map(async (customer) => {
+        const [lastInvoice, lastPayment] = await Promise.all([
+          Invoice.findOne({ farmer: customer._id }).sort({ createdAt: -1 }),
+          Transaction.findOne({ farmer: customer._id, type: "payment" }).sort({
+            voucherDate: -1,
+            createdAt: -1,
+          }),
+        ]);
+
+        return {
+          customerId: customer._id,
+          customerName: customer.name,
+          mobile: customer.mobileNumber,
+          outstanding: customer.dueAmount || 0,
+          lastInvoiceDate: lastInvoice?.createdAt || null,
+          lastPaymentDate: lastPayment?.voucherDate || lastPayment?.createdAt || null,
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      totalOutstanding: rows.reduce(
+        (total, row) => total + Number(row.outstanding || 0),
+        0
+      ),
+      rows,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const salesRegister = async (req, res) => {
+  try {
+    const invoices = await Invoice.find()
+      .populate("farmer")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      rows: invoices.map((invoice) => ({
+        _id: invoice._id,
+        date: invoice.createdAt,
+        invoiceNo: invoice.invoiceNumber,
+        customerName: invoice.farmer?.name || "-",
+        type: invoice.documentType,
+        paymentType: invoice.billingType,
+        taxable: invoice.subTotal || 0,
+        gst: invoice.totalGST || 0,
+        total: invoice.grandTotal || 0,
+        status: invoice.paymentStatus,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const receiptRegister = async (req, res) => {
+  try {
+    const receipts = await Transaction.find({ type: "payment" })
+      .populate("farmer")
+      .sort({ voucherDate: -1, createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      rows: receipts.map((receipt) => ({
+        _id: receipt._id,
+        date: receipt.voucherDate || receipt.createdAt,
+        voucherNo: receipt.voucherNo,
+        customerName: receipt.farmer?.name || "-",
+        invoiceNo: receipt.invoiceNumber || "-",
+        paymentMode: receipt.paymentMode,
+        amount: receipt.amount || 0,
+        remarks: receipt.description || "",
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const purchaseRegister = async (req, res) => {
+  try {
+    const purchases = await VendorTransaction.find({ type: "purchase" })
+      .populate("vendor")
+      .sort({ voucherDate: -1, createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      rows: purchases.map((purchase) => ({
+        _id: purchase._id,
+        date: purchase.voucherDate || purchase.createdAt,
+        voucherNo: purchase.voucherNo,
+        billNo: purchase.billNo || "-",
+        vendorName: purchase.vendor?.vendorName || "-",
+        amount: purchase.amount || 0,
+        remarks: purchase.remarks || "",
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const paymentRegister = async (req, res) => {
+  try {
+    const payments = await VendorTransaction.find({
+      type: { $in: ["payment", "expense"] },
+    })
+      .populate("vendor")
+      .sort({ voucherDate: -1, createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      rows: payments.map((payment) => ({
+        _id: payment._id,
+        date: payment.voucherDate || payment.createdAt,
+        voucherNo: payment.voucherNo,
+        vendorName: payment.vendor?.vendorName || payment.partyName || payment.expenseHead || "-",
+        paymentMode: payment.paymentMode,
+        amount: payment.amount || 0,
+        remarks: payment.remarks || "",
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const dayBook = async (req, res) => {
+  try {
+    const [invoices, receipts, vendorEntries] = await Promise.all([
+      Invoice.find().populate("farmer"),
+      Transaction.find({ type: { $in: ["opening", "credit", "payment", "interest"] } }).populate("farmer"),
+      VendorTransaction.find().populate("vendor"),
+    ]);
+
+    const sales = invoices.map((invoice) => ({
+      date: invoice.createdAt,
+      voucherType: invoice.documentType === "order" ? "Order" : "Sales",
+      voucherNo: invoice.invoiceNumber,
+      party: invoice.farmer?.name || "-",
+      debit: invoice.grandTotal || 0,
+      credit: 0,
+      remarks: invoice.paymentStatus,
+    }));
+    const customerEntries = receipts.map((entry) => ({
+      date: entry.voucherDate || entry.createdAt,
+      voucherType: entry.type === "payment" ? "Receipt" : entry.type,
+      voucherNo: entry.voucherNo || entry.invoiceNumber || "-",
+      party: entry.farmer?.name || "-",
+      debit: entry.type === "payment" ? 0 : entry.amount || 0,
+      credit: entry.type === "payment" ? entry.amount || 0 : 0,
+      remarks: entry.description || "",
+    }));
+    const vendorRows = vendorEntries.map((entry) => ({
+      date: entry.voucherDate || entry.createdAt,
+      voucherType: entry.type,
+      voucherNo: entry.voucherNo || "-",
+      party: entry.vendor?.vendorName || entry.partyName || entry.expenseHead || "-",
+      debit: ["payment", "expense"].includes(entry.type) ? entry.amount || 0 : 0,
+      credit: ["opening", "purchase"].includes(entry.type) ? entry.amount || 0 : 0,
+      remarks: entry.remarks || "",
+    }));
+    const rows = [...sales, ...customerEntries, ...vendorRows].sort(
+      (a, b) => new Date(b.date) - new Date(a.date)
+    );
+
+    res.status(200).json({ success: true, rows });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const cashBook = async (req, res) => {
+  try {
+    const [receipts, payments] = await Promise.all([
+      Transaction.find({ type: "payment", paymentMode: "cash" }).populate("farmer"),
+      VendorTransaction.find({
+        type: { $in: ["payment", "expense"] },
+        paymentMode: "cash",
+      }).populate("vendor"),
+    ]);
+
+    let runningBalance = 0;
+    const rows = [
+      ...receipts.map((entry) => ({
+        date: entry.voucherDate || entry.createdAt,
+        voucherType: "Receipt",
+        voucherNo: entry.voucherNo || "-",
+        party: entry.farmer?.name || "-",
+        debit: entry.amount || 0,
+        credit: 0,
+        remarks: entry.description || "",
+      })),
+      ...payments.map((entry) => ({
+        date: entry.voucherDate || entry.createdAt,
+        voucherType: "Payment",
+        voucherNo: entry.voucherNo || "-",
+        party: entry.vendor?.vendorName || entry.partyName || entry.expenseHead || "-",
+        debit: 0,
+        credit: entry.amount || 0,
+        remarks: entry.remarks || "",
+      })),
+    ].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    const rowsWithBalance = rows.map((row) => {
+      runningBalance += Number(row.debit || 0) - Number(row.credit || 0);
+      return { ...row, runningBalance };
+    });
+
+    res.status(200).json({ success: true, rows: rowsWithBalance.reverse() });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };

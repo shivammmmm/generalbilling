@@ -10,7 +10,7 @@ const transactionSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["credit", "payment", "interest"],
+      enum: ["opening", "credit", "payment", "interest"],
       required: true,
     },
 
@@ -27,6 +27,16 @@ const transactionSchema = new mongoose.Schema(
     invoiceNumber: {
       type: String,
       default: "",
+    },
+
+    voucherNo: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    voucherDate: {
+      type: Date,
     },
 
     description: {

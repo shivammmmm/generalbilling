@@ -21,7 +21,7 @@ export const recalculateCustomerLedger = async (farmerId) => {
   if (!farmer) return null;
 
   const totalDebit = transactions
-    .filter((entry) => entry.type === "credit" || entry.type === "interest")
+    .filter((entry) => ["opening", "credit", "interest"].includes(entry.type))
     .reduce((total, entry) => total + Number(entry.amount || 0), 0);
   const totalCredit = transactions
     .filter((entry) => entry.type === "payment")
@@ -70,14 +70,16 @@ export const buildCustomerStatement = async (farmerId) => {
 
   let runningBalance = 0;
   const statement = transactions.map((entry) => {
-    const isDebit = entry.type === "credit" || entry.type === "interest";
+    const isDebit = ["opening", "credit", "interest"].includes(entry.type);
     const debit = isDebit ? Number(entry.amount || 0) : 0;
     const credit = entry.type === "payment" ? Number(entry.amount || 0) : 0;
     runningBalance += debit - credit;
 
     return {
       _id: entry._id,
-      date: entry.createdAt,
+      date: entry.voucherDate || entry.createdAt,
+      voucherType: entry.type,
+      voucherNo: entry.voucherNo || "-",
       invoiceNo: entry.invoiceNumber || "-",
       description: entry.description || "",
       paymentMode: entry.paymentMode || "",

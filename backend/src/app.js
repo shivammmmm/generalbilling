@@ -9,6 +9,7 @@ import productRoutes from "./routes/product.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
 import invoiceRoutes from "./routes/invoice.routes.js";
 import reportRoutes from "./routes/report.routes.js";
+import vendorRoutes from "./routes/vendor.routes.js";
 
 const app = express();
 
@@ -45,4 +46,6 @@ app.use("/api/invoices", invoiceRoutes);
 
 app.use("/api/reports", reportRoutes);
 
-export default app; 
+app.use("/api/vendors", vendorRoutes);
+
+export default app;

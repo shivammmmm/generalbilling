@@ -16,7 +16,9 @@ const CustomerTable = ({ farmers, deleteCustomer }) => {
               {[
                 "Customer Name",
                 "Mobile",
-                "Default Rate Type",
+                "City",
+                "Status",
+                "Credit Limit",
                 "Total Orders",
                 "Total Purchase",
                 "Total Paid",
@@ -37,7 +39,7 @@ const CustomerTable = ({ farmers, deleteCustomer }) => {
           <tbody className="divide-y divide-slate-100">
             {farmers?.length === 0 ? (
               <tr>
-                <td colSpan="8" className="px-5 py-16 text-center">
+                <td colSpan="10" className="px-5 py-16 text-center">
                   <div className="flex flex-col items-center gap-3 text-slate-400">
                     <User size={42} />
                     <p className="text-sm font-bold">No customers found.</p>
@@ -57,7 +59,7 @@ const CustomerTable = ({ farmers, deleteCustomer }) => {
                           {farmer.name}
                         </p>
                         <p className="text-xs font-semibold text-slate-500">
-                          {farmer.village}
+                          {[farmer.village, farmer.city].filter(Boolean).join(", ")}
                         </p>
                       </div>
                     </div>
@@ -71,9 +73,23 @@ const CustomerTable = ({ farmers, deleteCustomer }) => {
                   </td>
 
                   <td className="px-5 py-5">
-                    <span className="inline-flex rounded-xl bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-widest text-blue-700">
-                      {farmer.defaultRateType || "Rate A"}
+                    <span className="text-sm font-bold text-slate-700">
+                      {farmer.city || farmer.village || "-"}
                     </span>
+                  </td>
+
+                  <td className="px-5 py-5">
+                    <span className={`inline-flex rounded-xl px-3 py-1 text-xs font-black uppercase tracking-widest ${
+                      farmer.status === "inactive"
+                        ? "bg-slate-100 text-slate-500"
+                        : "bg-emerald-50 text-emerald-700"
+                    }`}>
+                      {farmer.status || "active"}
+                    </span>
+                  </td>
+
+                  <td className="px-5 py-5 text-sm font-black text-slate-950">
+                    {formatCurrency(farmer.creditLimit)}
                   </td>
 
                   <td className="px-5 py-5">
