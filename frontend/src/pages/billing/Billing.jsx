@@ -20,7 +20,9 @@ import {
   RATE_TYPES,
   calculateInvoiceTotals,
   calculateLine,
+  formatCurrency,
   getProductRate,
+  toNumber,
 } from "../../utils/billing";
 
 const emptyItem = {
@@ -50,6 +52,9 @@ const Billing = () => {
   const [formData, setFormData] = useState({
     farmerId: "",
     rateType: "Rate A",
+    billingType: "cash",
+    receivedAmount: "",
+    paymentMode: "cash",
     invoiceDate: today,
     products: [{ ...emptyItem }],
   });
@@ -150,6 +155,12 @@ const Billing = () => {
     [formData.products, formData.rateType, productsList, gstEnabled]
   );
 
+  const receivedAmount =
+    formData.billingType === "cash"
+      ? summary.grandTotal
+      : Math.min(toNumber(formData.receivedAmount), summary.grandTotal);
+  const balanceDue = Math.max(summary.grandTotal - receivedAmount, 0);
+
   const withProductRate = (item, rateType = formData.rateType) => {
     const product = productsList.find((entry) => entry._id === item.product);
 
@@ -181,6 +192,14 @@ const Billing = () => {
       ...prev,
       rateType,
       products: prev.products.map((item) => withProductRate(item, rateType)),
+    }));
+  };
+
+  const handlePaymentTypeChange = (billingType) => {
+    setFormData((prev) => ({
+      ...prev,
+      billingType,
+      receivedAmount: billingType === "cash" ? "" : prev.receivedAmount,
     }));
   };
 
@@ -249,11 +268,21 @@ const Billing = () => {
       return;
     }
 
+    if (
+      formData.billingType === "credit" &&
+      toNumber(formData.receivedAmount) > summary.grandTotal
+    ) {
+      toast.error("Received amount cannot be greater than grand total");
+      return;
+    }
+
     try {
       setLoading(true);
       await API.post("/invoices", {
         farmerId: formData.farmerId,
-        billingType: "credit",
+        billingType: formData.billingType,
+        receivedAmount,
+        paymentMode: formData.paymentMode,
         rateType: formData.rateType,
         invoiceDate: formData.invoiceDate,
         documentType: documentType,
@@ -454,6 +483,87 @@ const Billing = () => {
                     className="input-field pl-10"
                   />
                 </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-slate-600">
+                  Payment Type
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: "cash", label: "Cash" },
+                    { value: "credit", label: "Credit" },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handlePaymentTypeChange(option.value)}
+                      className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${
+                        formData.billingType === option.value
+                          ? "border-emerald-600 bg-emerald-600 text-white shadow-lg shadow-emerald-100"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-slate-600">
+                  Received Amount
+                </label>
+                <div className="relative">
+                  <IndianRupee
+                    size={18}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={
+                      formData.billingType === "cash"
+                        ? summary.grandTotal.toFixed(2)
+                        : formData.receivedAmount
+                    }
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        receivedAmount: event.target.value,
+                      }))
+                    }
+                    disabled={formData.billingType === "cash"}
+                    placeholder="Optional for credit"
+                    className="input-field pl-10 disabled:bg-slate-100 disabled:text-slate-500"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-500">
+                  Balance Due
+                </p>
+                <p
+                  className={`mt-2 text-2xl font-black ${
+                    balanceDue > 0 ? "text-red-600" : "text-emerald-700"
+                  }`}
+                >
+                  {formatCurrency(balanceDue)}
+                </p>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  Status:{" "}
+                  {balanceDue <= 0
+                    ? "Paid"
+                    : receivedAmount > 0
+                      ? "Partially Paid"
+                      : "Unpaid"}
+                </p>
               </div>
             </div>
           </section>

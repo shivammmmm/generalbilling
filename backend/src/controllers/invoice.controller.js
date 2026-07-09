@@ -4,6 +4,74 @@ import Product from "../models/Product.js";
 import Transaction from "../models/Transaction.js";
 
 import generateDocumentNumber from "../utils/generateInvoiceNumber.js";
+import {
+  getPaymentStatus,
+  recalculateCustomerLedger,
+} from "../utils/customerLedger.js";
+
+const normalizeAmount = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const getReceivedAmount = (billingType, grandTotal, receivedAmount = 0) => {
+  if (billingType === "cash") return grandTotal;
+
+  const paid = Math.max(normalizeAmount(receivedAmount), 0);
+  return Math.min(paid, grandTotal);
+};
+
+const createInvoiceLedgerEntries = async ({
+  invoice,
+  farmerId,
+  receivedAmount,
+  paymentMode = "cash",
+  dueDate,
+}) => {
+  await Transaction.create({
+    farmer: farmerId,
+    type: "credit",
+    amount: invoice.grandTotal,
+    invoice: invoice._id,
+    invoiceNumber: invoice.invoiceNumber,
+    description: `Invoice ${invoice.invoiceNumber}`,
+    dueDate,
+  });
+
+  if (receivedAmount > 0) {
+    await Transaction.create({
+      farmer: farmerId,
+      type: "payment",
+      amount: receivedAmount,
+      invoice: invoice._id,
+      invoiceNumber: invoice.invoiceNumber,
+      paymentMode,
+      description: `Received against Invoice ${invoice.invoiceNumber}`,
+    });
+  }
+};
+
+const deleteInvoiceLedgerEntries = async (invoice) => {
+  await Transaction.deleteMany({
+    $or: [
+      { invoice: invoice._id },
+      {
+        farmer: invoice.farmer,
+        invoiceNumber: invoice.invoiceNumber,
+      },
+      {
+        farmer: invoice.farmer,
+        type: "credit",
+        description: `Invoice ${invoice.invoiceNumber}`,
+      },
+      {
+        farmer: invoice.farmer,
+        type: "payment",
+        description: `Received against Invoice ${invoice.invoiceNumber}`,
+      },
+    ],
+  });
+};
 
 // ================= CREATE INVOICE =================
 
@@ -14,6 +82,8 @@ export const createInvoice = async (req, res) => {
       billingType = "credit",
       rateType,
       documentType = "gst_invoice",
+      receivedAmount = 0,
+      paymentMode = "cash",
       products = [],
     } = req.body;
 
@@ -131,13 +201,15 @@ export const createInvoice = async (req, res) => {
 
     const invoiceNumber = await generateDocumentNumber(documentType);
 
-    // payment status
-
-    let paymentStatus = "paid";
-
-    if (billingType === "credit") {
-      paymentStatus = "pending";
+    if (normalizeAmount(receivedAmount) > grandTotal) {
+      return res.status(400).json({
+        message: "Received amount cannot be greater than grand total",
+      });
     }
+
+    const received = getReceivedAmount(billingType, grandTotal, receivedAmount);
+    const balanceDue = Math.max(grandTotal - received, 0);
+    const paymentStatus = getPaymentStatus(grandTotal, received);
 
     // create invoice
 
@@ -162,34 +234,26 @@ export const createInvoice = async (req, res) => {
 
       grandTotal,
 
+      paidAmount: received,
+
+      receivedAmount: received,
+
+      balanceDue,
+
       paymentStatus,
 
       createdAt: req.body.invoiceDate ? new Date(req.body.invoiceDate) : undefined,
     });
 
-    // CREDIT BILLING → create transaction
+    await createInvoiceLedgerEntries({
+      invoice,
+      farmerId: farmer._id,
+      receivedAmount: received,
+      paymentMode,
+      dueDate: req.body.dueDate,
+    });
 
-    if (billingType === "credit") {
-      // update farmer due
-
-      farmer.dueAmount += grandTotal;
-
-      await farmer.save();
-
-      // create transaction
-
-      await Transaction.create({
-        farmer: farmer._id,
-
-        type: "credit",
-
-        amount: grandTotal,
-
-        description: `Invoice ${invoiceNumber}`,
-
-        dueDate: req.body.dueDate,
-      });
-    }
+    await recalculateCustomerLedger(farmer._id);
 
     res.status(201).json({
       success: true,
@@ -297,25 +361,12 @@ export const deleteInvoice = async (req, res) => {
       });
     }
 
-    if (invoice.billingType === "credit") {
-      const farmer = await Farmer.findById(invoice.farmer);
+    const farmerId = invoice.farmer;
 
-      if (farmer) {
-        farmer.dueAmount = Math.max(
-          0,
-          farmer.dueAmount - Number(invoice.grandTotal || 0)
-        );
-        await farmer.save();
-      }
-
-      await Transaction.deleteOne({
-        farmer: invoice.farmer,
-        type: "credit",
-        description: `Invoice ${invoice.invoiceNumber}`,
-      });
-    }
+    await deleteInvoiceLedgerEntries(invoice);
 
     await Invoice.findByIdAndDelete(req.params.id);
+    await recalculateCustomerLedger(farmerId);
 
     res.status(200).json({
       success: true,
@@ -340,6 +391,8 @@ export const updateInvoice = async (req, res) => {
       documentType = "gst_invoice",
       products = [],
       invoiceDate,
+      receivedAmount,
+      paymentMode = "cash",
     } = req.body;
 
     if (!products.length) {
@@ -355,22 +408,7 @@ export const updateInvoice = async (req, res) => {
       });
     }
 
-    if (invoice.billingType === "credit") {
-      const oldFarmer = await Farmer.findById(invoice.farmer);
-      if (oldFarmer) {
-        oldFarmer.dueAmount = Math.max(
-          0,
-          oldFarmer.dueAmount - Number(invoice.grandTotal || 0)
-        );
-        await oldFarmer.save();
-      }
-
-      await Transaction.deleteOne({
-        farmer: invoice.farmer,
-        type: "credit",
-        description: `Invoice ${invoice.invoiceNumber}`,
-      });
-    }
+    const oldFarmerId = invoice.farmer;
 
     const farmer = await Farmer.findById(farmerId || invoice.farmer);
     if (!farmer) {
@@ -445,19 +483,22 @@ export const updateInvoice = async (req, res) => {
     }
 
     const grandTotal = subTotal + totalGST;
-    const paymentStatus = billingType === "credit" ? "pending" : "paid";
+    const requestedReceived =
+      receivedAmount !== undefined
+        ? receivedAmount
+        : invoice.paidAmount ?? invoice.receivedAmount ?? 0;
 
-    if (billingType === "credit") {
-      farmer.dueAmount += grandTotal;
-      await farmer.save();
-
-      await Transaction.create({
-        farmer: farmer._id,
-        type: "credit",
-        amount: grandTotal,
-        description: `Invoice ${invoice.invoiceNumber}`,
+    if (normalizeAmount(requestedReceived) > grandTotal) {
+      return res.status(400).json({
+        message: "Received amount cannot be greater than grand total",
       });
     }
+
+    const received = getReceivedAmount(billingType, grandTotal, requestedReceived);
+    const balanceDue = Math.max(grandTotal - received, 0);
+    const paymentStatus = getPaymentStatus(grandTotal, received);
+
+    await deleteInvoiceLedgerEntries(invoice);
 
     invoice.farmer = farmer._id;
     invoice.billingType = billingType;
@@ -468,12 +509,28 @@ export const updateInvoice = async (req, res) => {
     invoice.subTotal = subTotal;
     invoice.totalGST = totalGST;
     invoice.grandTotal = grandTotal;
+    invoice.paidAmount = received;
+    invoice.receivedAmount = received;
+    invoice.balanceDue = balanceDue;
     invoice.paymentStatus = paymentStatus;
     if (invoiceDate) {
       invoice.createdAt = new Date(invoiceDate);
     }
 
     await invoice.save();
+
+    await createInvoiceLedgerEntries({
+      invoice,
+      farmerId: farmer._id,
+      receivedAmount: received,
+      paymentMode,
+      dueDate: req.body.dueDate,
+    });
+
+    await recalculateCustomerLedger(oldFarmerId);
+    if (String(oldFarmerId) !== String(farmer._id)) {
+      await recalculateCustomerLedger(farmer._id);
+    }
 
     res.status(200).json({
       success: true,

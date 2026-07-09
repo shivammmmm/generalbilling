@@ -12,13 +12,34 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "../../utils/billing";
 
+const getPaymentStatusMeta = (status) => {
+  if (status === "paid") {
+    return {
+      label: "Paid",
+      className: "bg-emerald-50 text-emerald-700",
+    };
+  }
+
+  if (status === "partially_paid") {
+    return {
+      label: "Partially Paid",
+      className: "bg-amber-50 text-amber-700",
+    };
+  }
+
+  return {
+    label: "Unpaid",
+    className: "bg-red-50 text-red-700",
+  };
+};
+
 const InvoiceTable = ({ invoices }) => {
   return (
     <>
       {/* Desktop Table Layout (visible on md screens and up) */}
       <div className="hidden md:block overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] text-left">
+          <table className="w-full min-w-[1040px] text-left">
             <thead className="bg-slate-50">
               <tr>
                 {[
@@ -26,6 +47,7 @@ const InvoiceTable = ({ invoices }) => {
                   "Type",
                   "Customer",
                   "Grand Total",
+                  "Status",
                   "Date",
                   "Actions",
                 ].map((heading) => (
@@ -43,7 +65,7 @@ const InvoiceTable = ({ invoices }) => {
             <tbody className="divide-y divide-slate-100">
               {invoices?.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-16 text-center">
+                  <td colSpan="7" className="px-6 py-16 text-center">
                     <div className="flex flex-col items-center gap-3 text-slate-400">
                       <Receipt size={40} />
                       <p className="text-sm font-bold">No invoices found.</p>
@@ -55,6 +77,7 @@ const InvoiceTable = ({ invoices }) => {
                   const isGst =
                     invoice.documentType !== "order" &&
                     invoice.gstEnabled !== false;
+                  const statusMeta = getPaymentStatusMeta(invoice.paymentStatus);
 
                   return (
                     <tr key={invoice._id} className="transition hover:bg-slate-50">
@@ -111,6 +134,17 @@ const InvoiceTable = ({ invoices }) => {
                         {isGst && (
                           <p className="mt-1 text-xs font-semibold text-slate-500">
                             GST {formatCurrency(invoice.totalGST)}
+                          </p>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-5">
+                        <span className={`inline-flex rounded-xl px-3 py-1.5 text-xs font-black uppercase tracking-widest ${statusMeta.className}`}>
+                          {statusMeta.label}
+                        </span>
+                        {Number(invoice.balanceDue || 0) > 0 && (
+                          <p className="mt-1 text-xs font-semibold text-slate-500">
+                            Due {formatCurrency(invoice.balanceDue)}
                           </p>
                         )}
                       </td>
@@ -174,6 +208,7 @@ const InvoiceTable = ({ invoices }) => {
             const isGst =
               invoice.documentType !== "order" &&
               invoice.gstEnabled !== false;
+            const statusMeta = getPaymentStatusMeta(invoice.paymentStatus);
 
             return (
               <div
@@ -199,6 +234,10 @@ const InvoiceTable = ({ invoices }) => {
                     </span>
                   )}
                 </div>
+
+                <span className={`inline-flex rounded-xl px-2.5 py-1 text-xs font-black uppercase tracking-widest ${statusMeta.className}`}>
+                  {statusMeta.label}
+                </span>
 
                 {/* Details: Customer & Date Grid */}
                 <div className="grid grid-cols-2 gap-4 border-t border-b border-slate-100 py-3 text-xs">

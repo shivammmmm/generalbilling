@@ -1,24 +1,10 @@
-import dotenv from "dotenv";
-import { dirname, resolve } from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-dotenv.config({ path: resolve(__dirname, ".env") });
-
-import app from "./src/app.js";
-
-import connectDB from "./src/configs/db.js";
-
-// cron jobs
-import startCronJobs from "./src/utils/interestCron.js";
-
-
-
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
+  const { default: app } = await import("./src/app.js");
+  const { default: connectDB } = await import("./src/configs/db.js");
+  const { default: startCronJobs } = await import("./src/utils/interestCron.js");
+
   // database connection
   await connectDB();
 
@@ -31,4 +17,9 @@ const startServer = async () => {
   });
 };
 
-startServer();
+try {
+  await startServer();
+} catch (error) {
+  console.error("Server Startup Error:", error.message);
+  process.exit(1);
+}

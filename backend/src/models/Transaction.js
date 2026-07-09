@@ -19,13 +19,23 @@ const transactionSchema = new mongoose.Schema(
       required: true,
     },
 
+    invoice: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Invoice",
+    },
+
+    invoiceNumber: {
+      type: String,
+      default: "",
+    },
+
     description: {
       type: String,
     },
 
     paymentMode: {
       type: String,
-      enum: ["cash", "upi", "bank"],
+      enum: ["cash", "upi", "bank", "cheque"],
     },
 
     dueDate: {

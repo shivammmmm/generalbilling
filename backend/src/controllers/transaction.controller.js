@@ -1,6 +1,10 @@
 import Transaction from "../models/Transaction.js";
 import Farmer from "../models/Farmer.js";
 import Product from "../models/Product.js";
+import {
+  buildCustomerStatement,
+  recalculateCustomerLedger,
+} from "../utils/customerLedger.js";
 
 
 
@@ -78,6 +82,7 @@ export const createCreditTransaction = async (req, res) => {
     farmer.dueAmount += amount;
 
     await farmer.save();
+    await recalculateCustomerLedger(farmer._id);
 
     res.status(201).json({
       success: true,
@@ -112,9 +117,17 @@ export const createPaymentTransaction = async (req, res) => {
       });
     }
 
+    const paymentAmount = Number(amount) || 0;
+
+    if (paymentAmount <= 0) {
+      return res.status(400).json({
+        message: "Payment amount must be greater than zero",
+      });
+    }
+
     // due check
 
-    if (amount > farmer.dueAmount) {
+    if (paymentAmount > farmer.dueAmount) {
       return res.status(400).json({
         message: "Payment exceeds due amount",
       });
@@ -125,16 +138,12 @@ export const createPaymentTransaction = async (req, res) => {
     const transaction = await Transaction.create({
       farmer: farmerId,
       type: "payment",
-      amount,
+      amount: paymentAmount,
       paymentMode,
       description,
     });
 
-    // reduce due amount
-
-    farmer.dueAmount -= amount;
-
-    await farmer.save();
+    await recalculateCustomerLedger(farmer._id);
 
     res.status(201).json({
       success: true,
@@ -182,6 +191,7 @@ export const createInterestTransaction = async (req, res) => {
     farmer.dueAmount += amount;
 
     await farmer.save();
+    await recalculateCustomerLedger(farmer._id);
 
     res.status(201).json({
       success: true,
@@ -226,25 +236,21 @@ export const getFarmerLedger = async (req, res) => {
   try {
     const farmerId = req.params.id;
 
-    const farmer = await Farmer.findById(farmerId);
+    const statementData = await buildCustomerStatement(farmerId);
 
-    if (!farmer) {
+    if (!statementData) {
       return res.status(404).json({
         message: "Farmer not found",
       });
     }
 
-    const ledger = await Transaction.find({
-      farmer: farmerId,
-    })
-      .sort({ createdAt: -1 })
-      .populate("products.product");
-
     res.status(200).json({
       success: true,
-      farmer,
-      dueAmount: farmer.dueAmount,
-      ledger,
+      farmer: statementData.farmer,
+      dueAmount: statementData.summary.outstandingBalance,
+      summary: statementData.summary,
+      statement: statementData.statement,
+      ledger: statementData.statement,
     });
   } catch (error) {
     res.status(500).json({
@@ -305,22 +311,10 @@ export const deleteTransaction = async (req, res) => {
       });
     }
 
-    const farmer = await Farmer.findById(transaction.farmer);
-
-    if (farmer) {
-      if (transaction.type === "payment") {
-        farmer.dueAmount += Number(transaction.amount || 0);
-      } else if (transaction.type === "credit" || transaction.type === "interest") {
-        farmer.dueAmount = Math.max(
-          0,
-          farmer.dueAmount - Number(transaction.amount || 0)
-        );
-      }
-
-      await farmer.save();
-    }
+    const farmerId = transaction.farmer;
 
     await Transaction.findByIdAndDelete(req.params.id);
+    await recalculateCustomerLedger(farmerId);
 
     res.status(200).json({
       success: true,
