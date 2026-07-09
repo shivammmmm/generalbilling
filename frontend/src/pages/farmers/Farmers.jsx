@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Plus, Search, Users, X } from "lucide-react";
+import { ArrowDownLeft, ArrowRight, IndianRupee, Plus, Receipt, Search, Users, X } from "lucide-react";
 import toast from "react-hot-toast";
 import API from "../../services/api";
 import CustomerTable from "../../components/farmers/FarmerTable";
@@ -81,37 +81,63 @@ const Customers = () => {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-            <Users size={22} />
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
+        {[
+          {
+            label: "Total Customers",
+            value: customers.length.toLocaleString("en-IN"),
+            icon: <Users size={22} />,
+            color: "text-blue-600",
+          },
+          {
+            label: "Total Orders",
+            value: customers
+              .reduce((total, customer) => total + Number(customer.totalOrders || 0), 0)
+              .toLocaleString("en-IN"),
+            icon: <Receipt size={22} />,
+            color: "text-blue-600",
+          },
+          {
+            label: "Total Purchase",
+            value: `Rs ${customers
+              .reduce((total, customer) => total + Number(customer.totalPurchase || 0), 0)
+              .toLocaleString("en-IN")}`,
+            icon: <IndianRupee size={22} />,
+            color: "text-blue-600",
+          },
+          {
+            label: "Total Paid",
+            value: `Rs ${customers
+              .reduce((total, customer) => total + Number(customer.totalPaid || 0), 0)
+              .toLocaleString("en-IN")}`,
+            icon: <ArrowDownLeft size={22} />,
+            color: "text-emerald-600",
+          },
+          {
+            label: "Outstanding Balance",
+            value: `Rs ${customers
+              .reduce(
+                (total, customer) =>
+                  total + Number(customer.outstandingBalance ?? customer.dueAmount ?? 0),
+                0
+              )
+              .toLocaleString("en-IN")}`,
+            icon: <IndianRupee size={22} />,
+            color: "text-red-600",
+          },
+        ].map((card) => (
+          <div key={card.label} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className={`mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 ${card.color}`}>
+              {card.icon}
+            </div>
+            <p className="text-xs font-black uppercase tracking-widest text-slate-500">
+              {card.label}
+            </p>
+            <p className="mt-2 text-2xl font-black text-slate-950">
+              {card.value}
+            </p>
           </div>
-          <p className="text-xs font-black uppercase tracking-widest text-slate-500">
-            Total Customers
-          </p>
-          <p className="mt-2 text-3xl font-black text-slate-950">
-            {customers.length}
-          </p>
-        </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-500">
-            Areas
-          </p>
-          <p className="mt-2 text-3xl font-black text-blue-700">
-            {new Set(customers.map((customer) => customer.village)).size}
-          </p>
-        </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-500">
-            Outstanding
-          </p>
-          <p className="mt-2 text-3xl font-black text-blue-700">
-            Rs{" "}
-            {customers
-              .reduce((total, customer) => total + Number(customer.dueAmount || 0), 0)
-              .toLocaleString("en-IN")}
-          </p>
-        </div>
+        ))}
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">

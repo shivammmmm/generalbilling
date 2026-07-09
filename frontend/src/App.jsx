@@ -40,7 +40,6 @@ const protectedRoutes = [
   { path: "/orders", element: <Navigate to="/billing" replace /> },
   { path: "/invoices", element: <Invoices /> },
   { path: "/invoices/create", element: <Navigate to="/billing" replace /> },
-  { path: "/invoices/print/:id", element: <PrintInvoice /> },
   { path: "/invoices/edit/:id", element: <EditInvoice /> },
   { path: "/invoices/:id", element: <InvoiceDetails /> },
   { path: "/transactions", element: <Transactions /> },
@@ -60,6 +59,16 @@ const App = () => {
 
         {/* Login route */}
         <Route path="/login" element={<Login />} />
+
+        {/* Keep print outside MainLayout so browser print/PDF contains only the invoice/order. */}
+        <Route
+          path="/invoices/print/:id"
+          element={
+            <ProtectedRoute>
+              <PrintInvoice />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Protected routes — require login */}
         {protectedRoutes.map((route) => (

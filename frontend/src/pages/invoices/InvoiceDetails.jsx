@@ -67,6 +67,12 @@ const InvoiceDetails = () => {
 
   const isGst = invoice?.documentType !== "order" && invoice?.gstEnabled !== false;
   const docLabel = isGst ? "Invoice" : "Order";
+  const paymentStatusLabel =
+    invoice.paymentStatus === "paid"
+      ? "Paid"
+      : invoice.paymentStatus === "partially_paid"
+        ? "Partially Paid"
+        : "Unpaid";
 
   return (
     <div className="space-y-8 pb-12">
@@ -185,6 +191,15 @@ const InvoiceDetails = () => {
           <h2 className="mt-3 text-2xl font-black text-blue-700">
             {formatCurrency(invoice.grandTotal)}
           </h2>
+          <p className="mt-2 text-sm font-black text-slate-700">
+            Status: {paymentStatusLabel}
+          </p>
+          <p className="mt-1 text-sm font-semibold text-emerald-700">
+            Paid: {formatCurrency(invoice.paidAmount)}
+          </p>
+          <p className="text-sm font-semibold text-red-600">
+            Balance: {formatCurrency(invoice.balanceDue)}
+          </p>
           {isGst && (
             <p className="mt-1 text-sm font-semibold text-slate-600">
               GST {formatCurrency(invoice.totalGST)}

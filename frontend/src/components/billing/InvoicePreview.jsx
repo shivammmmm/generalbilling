@@ -1,5 +1,5 @@
 import { FileCheck, FileText, MapPin, Phone } from "lucide-react";
-import { calculateLine, formatCurrency } from "../../utils/billing";
+import { calculateLine, formatCurrency, toNumber } from "../../utils/billing";
 
 const InvoicePreview = ({
   formData,
@@ -21,6 +21,11 @@ const InvoicePreview = ({
     : new Date().toLocaleDateString("en-IN");
 
   const isGst = documentType === "gst_invoice";
+  const receivedAmount =
+    formData.billingType === "cash"
+      ? summary.grandTotal
+      : Math.min(toNumber(formData.receivedAmount), summary.grandTotal);
+  const balanceDue = Math.max(summary.grandTotal - receivedAmount, 0);
 
   return (
     <div className="xl:sticky xl:top-8 rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -187,6 +192,22 @@ const InvoicePreview = ({
               </span>
               <span className="text-2xl font-black text-slate-950">
                 {formatCurrency(summary.grandTotal)}
+              </span>
+            </div>
+          </div>
+          <div className="border-t border-slate-200 pt-4">
+            <div className="flex items-center justify-between text-sm font-bold text-slate-600">
+              <span>Payment Type</span>
+              <span className="capitalize">{formData.billingType || "cash"}</span>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-sm font-bold text-slate-600">
+              <span>Received</span>
+              <span>{formatCurrency(receivedAmount)}</span>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-sm font-black">
+              <span>Balance Due</span>
+              <span className={balanceDue > 0 ? "text-red-600" : "text-emerald-700"}>
+                {formatCurrency(balanceDue)}
               </span>
             </div>
           </div>

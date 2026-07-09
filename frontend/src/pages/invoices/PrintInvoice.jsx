@@ -6,9 +6,10 @@ import { toNumber } from "../../utils/billing";
 import { numberToWords } from "../../utils/numberToWords";
 
 const PAGE_ITEM_LIMIT = 14;
+const COMPANY_DISPLAY_NAME = "Walia's Creative Design & Prints";
 
 const FALLBACK_SHOP = {
-  shopName: "Walia's Creative",
+  shopName: COMPANY_DISPLAY_NAME,
   businessLine:
     "Eco Solvent Print, Flex Banners, Hoardings, Glow Signs, Inshop Branding, Acrylic LED Boards.",
   shopAddress: "Kelkar Para, Station Road, Raipur (C.G.)",
@@ -71,11 +72,31 @@ const A4_PRINT_STYLE = `
 }
 
 .invoice-document.pdf-render {
+  display: block;
+  width: 210mm;
+  min-width: 210mm;
+  max-width: 210mm;
   gap: 0;
+  align-items: stretch;
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
 }
 
 .invoice-document.pdf-render .invoice-page {
+  width: 210mm;
+  height: 297mm;
+  margin: 0;
+  padding: 8mm;
   box-shadow: none;
+  overflow: hidden;
+  page-break-after: always;
+  break-after: page;
+}
+
+.invoice-document.pdf-render .invoice-page:last-child {
+  page-break-after: auto;
+  break-after: auto;
 }
 
 .invoice-top-line {
@@ -84,62 +105,75 @@ const A4_PRINT_STYLE = `
   align-items: center;
   gap: 8px;
   border-bottom: 1.2px solid #111827;
-  padding: 5px 9px;
-  font-size: 10px;
+  padding: 4px 9px;
+  font-size: 12.5px;
   font-weight: 800;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+
+.invoice-document-heading {
+  font-size: 16px;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .invoice-title {
   text-align: center;
-  padding: 9px 12px 6px;
+  padding: 5px 14px 9px;
 }
 
 .invoice-title h1 {
-  margin: 0;
+  margin: 0 0 10px;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 34px;
-  line-height: 1;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 39px;
+  line-height: 1.08;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .invoice-title p {
-  margin: 5px 0 0;
-  font-size: 10px;
+  margin: 0;
+  font-size: 12px;
   font-weight: 700;
+  line-height: 1.4;
 }
 
 .invoice-business-line {
   border-top: 1.2px solid #111827;
   border-bottom: 1.2px solid #111827;
   background: #f3f6fb;
-  padding: 5px 10px;
+  padding: 6px 12px;
   text-align: center;
   font-size: 10.5px;
   font-weight: 800;
+  line-height: 1.3;
 }
 
 .invoice-contact-line {
-  padding: 5px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 8mm;
+  padding: 6px 14px;
   text-align: center;
   border-bottom: 1.2px solid #111827;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1.35;
+  font-size: 12.5px;
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 .invoice-party-grid {
   display: grid;
   grid-template-columns: 58% 42%;
   border-bottom: 1.2px solid #111827;
-  font-size: 10.5px;
+  font-size: 11.2px;
 }
 
 .invoice-buyer-box,
 .invoice-meta-box {
   min-height: 28mm;
-  padding: 8px 9px;
+  padding: 8px 10px;
 }
 
 .invoice-buyer-box {
@@ -147,30 +181,57 @@ const A4_PRINT_STYLE = `
 }
 
 .invoice-buyer-name {
-  margin: 0;
-  font-size: 12px;
+  margin: 2px 0 0;
+  font-size: 13.2px;
   font-weight: 900;
+  line-height: 1.25;
   text-transform: uppercase;
 }
 
 .invoice-muted-label {
   color: #475569;
-  font-size: 9px;
+  font-size: 10.6px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
+}
+
+.invoice-buyer-label {
+  display: block;
+  text-align: center;
+  font-size: 13.4px;
+  font-weight: 900;
+}
+
+.invoice-buyer-details {
+  margin-top: 5px;
+  line-height: 1.55;
+  font-size: 11.4px;
+  font-weight: 700;
 }
 
 .invoice-meta-row {
   display: grid;
   grid-template-columns: 45% 55%;
   gap: 8px;
-  padding: 4px 0;
+  padding: 5px 0;
   border-bottom: 1px solid #d7dde7;
+  align-items: center;
+  font-size: 11.3px;
+  line-height: 1.35;
 }
 
 .invoice-meta-row:last-child {
   border-bottom: 0;
+}
+
+.invoice-meta-row strong:first-child {
+  font-weight: 900;
+}
+
+.invoice-meta-row strong:last-child {
+  font-size: 11.9px;
+  font-weight: 900;
 }
 
 .invoice-page-body {
@@ -192,7 +253,7 @@ const A4_PRINT_STYLE = `
   flex: 1;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 9.3px;
+  font-size: 9.8px;
   height: 100%;
 }
 
@@ -200,9 +261,11 @@ const A4_PRINT_STYLE = `
   background: #f8fafc;
   border-right: 1px solid #111827;
   border-bottom: 1.2px solid #111827;
-  padding: 5px 4px;
+  padding: 6px 5px;
   text-align: center;
+  font-size: 10.3px;
   font-weight: 900;
+  line-height: 1.2;
   text-transform: uppercase;
 }
 
@@ -212,24 +275,39 @@ const A4_PRINT_STYLE = `
 }
 
 .invoice-table td {
-  height: 7.1mm;
+  height: 7.2mm;
   border-right: 1px solid #111827;
   border-bottom: 1px solid #cbd5e1;
-  padding: 3px 4px;
-  vertical-align: top;
+  padding: 4px 5px;
+  vertical-align: middle;
+  line-height: 1.28;
 }
 
 .invoice-table .amount-cell,
 .invoice-table .rate-cell {
-  text-align: right;
+  text-align: center;
 }
 
 .invoice-table .center-cell {
   text-align: center;
 }
 
+.invoice-table .numeric-highlight {
+  font-size: 10.3px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.invoice-table .gst-rate-cell,
+.invoice-table .amount-highlight {
+  font-size: 10.7px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
 .invoice-table .product-cell {
   font-weight: 800;
+  line-height: 1.25;
   word-break: break-word;
 }
 
@@ -267,9 +345,9 @@ const A4_PRINT_STYLE = `
 .invoice-footer-cell {
   min-height: 34mm;
   border-right: 1.2px solid #111827;
-  padding: 7px;
-  font-size: 9.4px;
-  line-height: 1.35;
+  padding: 8px;
+  font-size: 10.3px;
+  line-height: 1.45;
 }
 
 .invoice-footer-cell:last-child {
@@ -278,8 +356,8 @@ const A4_PRINT_STYLE = `
 
 .invoice-section-title {
   display: block;
-  margin-bottom: 4px;
-  font-size: 9.5px;
+  margin-bottom: 5px;
+  font-size: 10.5px;
   font-weight: 900;
   text-decoration: underline;
   text-transform: uppercase;
@@ -288,36 +366,61 @@ const A4_PRINT_STYLE = `
 .invoice-tax-table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 6px;
-  font-size: 8.2px;
+  margin-bottom: 7px;
+  font-size: 10.4px;
 }
 
 .invoice-tax-table th,
 .invoice-tax-table td {
   border: 1px solid #111827;
-  padding: 3px;
+  padding: 6px 5px;
+  text-align: center;
+  vertical-align: middle;
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
 .invoice-tax-table th {
   background: #f3f6fb;
+  font-size: 10.8px;
   font-weight: 900;
+}
+
+.invoice-tax-table td {
+  font-size: 10.6px;
+  font-weight: 800;
 }
 
 .invoice-terms {
   margin: 0;
-  padding-left: 14px;
+  padding-left: 0;
+  list-style-position: inside;
+  text-align: center;
+  font-size: 10.6px;
+  font-weight: 700;
 }
 
 .invoice-terms li {
-  margin-bottom: 2px;
+  margin-bottom: 4px;
+  line-height: 1.35;
 }
 
 .invoice-total-row {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  padding: 3px 0;
+  padding: 4px 0;
+  font-size: 10.8px;
   font-weight: 900;
+  line-height: 1.3;
+}
+
+.invoice-total-row span:first-child {
+  text-transform: uppercase;
+}
+
+.invoice-total-row span:last-child {
+  font-size: 11.2px;
 }
 
 .invoice-total-row.net {
@@ -325,15 +428,19 @@ const A4_PRINT_STYLE = `
   border-top: 1px solid #111827;
   padding-top: 6px;
   color: #991b1b;
-  font-size: 11px;
+  font-size: 13.2px;
+}
+
+.invoice-total-row.net span:last-child {
+  font-size: 14.4px;
 }
 
 .invoice-signature-row {
   display: grid;
-  grid-template-columns: 1fr 210px;
+  grid-template-columns: 1fr 230px;
   align-items: end;
-  gap: 12px;
-  padding: 9px 12px 7px;
+  gap: 14px;
+  padding: 10px 14px 8px;
   min-height: 26mm;
 }
 
@@ -343,22 +450,33 @@ const A4_PRINT_STYLE = `
 }
 
 .invoice-amount-words {
-  font-size: 10px;
-  line-height: 1.4;
+  font-size: 11.2px;
+  line-height: 1.5;
 }
 
 .invoice-signature {
   text-align: center;
-  font-size: 9.5px;
+  font-size: 10.8px;
   font-weight: 800;
+  line-height: 1.25;
+}
+
+.invoice-signature-for {
+  font-size: 11.2px;
+  font-weight: 900;
+}
+
+.invoice-signature-company {
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .invoice-signature img {
   display: block;
-  height: 54px;
-  max-width: 185px;
+  height: 68px;
+  max-width: 210px;
   object-fit: contain;
-  margin: 0 auto 2px;
+  margin: 2px auto 3px;
   mix-blend-mode: multiply;
 }
 
@@ -379,7 +497,7 @@ const A4_PRINT_STYLE = `
 
 .invoice-payment-qr strong {
   display: block;
-  font-size: 10px;
+  font-size: 10.8px;
   text-transform: uppercase;
 }
 
@@ -396,9 +514,14 @@ const A4_PRINT_STYLE = `
   }
 
   html,
-  body {
+  body,
+  #root {
     width: 210mm;
+    min-width: 210mm;
+    margin: 0 !important;
+    padding: 0 !important;
     background: #ffffff !important;
+    overflow: visible !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -418,12 +541,22 @@ const A4_PRINT_STYLE = `
   }
 
   .invoice-document {
+    width: 210mm !important;
     gap: 0 !important;
     min-width: 0 !important;
+    align-items: stretch !important;
   }
 
   .invoice-page {
+    width: 210mm !important;
+    height: 297mm !important;
+    margin: 0 !important;
+    padding: 8mm !important;
     box-shadow: none !important;
+  }
+
+  .invoice-shell > * {
+    margin-top: 0 !important;
   }
 }
 `;
@@ -497,7 +630,7 @@ const PrintInvoice = () => {
 
   const shop = useMemo(
     () => ({
-      shopName: settings.shopName || FALLBACK_SHOP.shopName,
+      shopName: COMPANY_DISPLAY_NAME,
       businessLine: FALLBACK_SHOP.businessLine,
       shopAddress: settings.shopAddress || FALLBACK_SHOP.shopAddress,
       shopMobile: settings.shopMobile || FALLBACK_SHOP.shopMobile,
@@ -538,12 +671,9 @@ const PrintInvoice = () => {
     return [...groups.values()].sort((a, b) => a.rate - b.rate);
   }, [invoice]);
 
-  const interestRate = toNumber(settings.monthlyInterestRate, 2) * 12 || 24;
   const termsList = [
-    "Goods once sold will not be taken back or exchanged.",
-    `Outstanding bills will attract ${formatCompactNumber(interestRate)}% annual interest after due date.`,
-    "All disputes are subject to Raipur jurisdiction only.",
-    "E. & O. E. GST rules apply as per current regulations.",
+    "All disputes are subject to Raipur Jurisdiction only.",
+    "E.&O.E. GST rules apply as current regulations.",
   ];
 
   const grandTotal = toNumber(invoice?.grandTotal);
@@ -554,23 +684,35 @@ const PrintInvoice = () => {
   const getPdfFilename = () =>
     `${isGst ? "GST-Invoice" : "Order"}-${invoice?.invoiceNumber || "bill"}.pdf`;
 
-  const getPdfOptions = (filename, element) => ({
-    margin: 0,
-    filename,
-    image: { type: "jpeg", quality: 1 },
-    html2canvas: {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: "#ffffff",
-      scrollX: 0,
-      scrollY: 0,
-      windowWidth: element.scrollWidth,
-      windowHeight: element.scrollHeight,
-    },
-    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-    pagebreak: { mode: ["css", "legacy"] },
-  });
+  const getPdfOptions = (filename, element) => {
+    const firstPage = element.querySelector(".invoice-page");
+    const pageWidth = Math.ceil(
+      firstPage?.getBoundingClientRect().width || element.getBoundingClientRect().width
+    );
+    const documentHeight = Math.ceil(
+      element.scrollHeight || element.getBoundingClientRect().height
+    );
+
+    return {
+      margin: 0,
+      filename,
+      image: { type: "jpeg", quality: 1 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: pageWidth,
+        windowHeight: documentHeight,
+        width: pageWidth,
+        height: documentHeight,
+      },
+      jsPDF: { unit: "mm", format: [210, 297], orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"] },
+    };
+  };
 
   const withPdfRender = async (element, action) => {
     element.classList.add("pdf-render");
@@ -587,10 +729,8 @@ const PrintInvoice = () => {
     if (!element) return null;
 
     const html2pdf = (await import("html2pdf.js")).default;
-    const options = getPdfOptions(filename, element);
-
     return withPdfRender(element, () =>
-      html2pdf().set(options).from(element).output("blob")
+      html2pdf().set(getPdfOptions(filename, element)).from(element).output("blob")
     );
   };
 
@@ -785,8 +925,8 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
   return (
     <>
       <div className="invoice-top-line">
-        <span>{isGst ? `GSTIN: ${shop.gstNumber}` : "Non-GST Order"}</span>
-        <span>{docHeading}</span>
+        <span />
+        <span className="invoice-document-heading">{docHeading}</span>
         <span style={{ textAlign: "right" }}>
           Page {pageIndex + 1} of {pageCount}
         </span>
@@ -802,17 +942,18 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
           <div className="invoice-business-line">{shop.businessLine}</div>
 
           <div className="invoice-contact-line">
-            Mobile: {shop.shopMobile}
-            {shop.shopEmail ? ` | Email: ${shop.shopEmail}` : ""}
+            Mobile : {shop.shopMobile}
+            {shop.shopEmail ? ` | Email : ${shop.shopEmail}` : ""}
+            {shop.gstNumber ? ` | GSTIN : ${shop.gstNumber}` : ""}
           </div>
         </>
       )}
 
       <div className="invoice-party-grid">
         <div className="invoice-buyer-box">
-          <span className="invoice-muted-label">Bill To</span>
+          <span className="invoice-muted-label invoice-buyer-label">Bill To</span>
           <p className="invoice-buyer-name">{invoice?.farmer?.name || "-"}</p>
-          <div style={{ marginTop: 4, lineHeight: 1.45 }}>
+          <div className="invoice-buyer-details">
             <div>{customerAddress || "-"}</div>
             <div>Mobile: {invoice?.farmer?.mobileNumber || "-"}</div>
             {isGst && <div>GSTIN: {invoice?.farmer?.gstNumber || "-"}</div>}
@@ -888,7 +1029,7 @@ const ItemsTable = ({ invoice, isGst, pageItems, serialOffset, showPageTotal }) 
                 </td>
               )}
               {isGst && (
-                <td className="center-cell">
+                <td className="center-cell gst-rate-cell">
                   {formatCompactNumber(item.gstRate)}
                 </td>
               )}
@@ -897,8 +1038,8 @@ const ItemsTable = ({ invoice, isGst, pageItems, serialOffset, showPageTotal }) 
               </td>
               <td className="center-cell">{formatCompactNumber(sqFt)}</td>
               <td className="center-cell">{formatCompactNumber(quantity)}</td>
-              <td className="rate-cell">{formatNumber(item.selectedRate)}</td>
-              <td className="amount-cell">{formatNumber(amount)}</td>
+              <td className="rate-cell numeric-highlight">{formatNumber(item.selectedRate)}</td>
+              <td className="amount-cell amount-highlight">{formatNumber(amount)}</td>
             </tr>
           );
         })}
@@ -916,7 +1057,7 @@ const ItemsTable = ({ invoice, isGst, pageItems, serialOffset, showPageTotal }) 
             <td />
             <td />
             <td />
-            <td className="amount-cell">{formatNumber(invoice?.subTotal)}</td>
+            <td className="amount-cell amount-highlight">{formatNumber(invoice?.subTotal)}</td>
           </tr>
         </tfoot>
       )}
@@ -969,12 +1110,12 @@ const InvoiceFooter = ({
             <tbody>
               {taxBreakup.map((row) => (
                 <tr key={row.rate}>
-                  <td style={{ textAlign: "center", fontWeight: 800 }}>
+                  <td style={{ fontWeight: 800, textAlign: "center" }}>
                     {formatCompactNumber(row.rate)}%
                   </td>
-                  <td style={{ textAlign: "right" }}>{formatNumber(row.taxable)}</td>
-                  <td style={{ textAlign: "right" }}>{formatNumber(row.gstAmount / 2)}</td>
-                  <td style={{ textAlign: "right" }}>{formatNumber(row.gstAmount / 2)}</td>
+                  <td style={{ textAlign: "center" }}>{formatNumber(row.taxable)}</td>
+                  <td style={{ textAlign: "center" }}>{formatNumber(row.gstAmount / 2)}</td>
+                  <td style={{ textAlign: "center" }}>{formatNumber(row.gstAmount / 2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -1012,7 +1153,7 @@ const InvoiceFooter = ({
 
       <div className="invoice-footer-cell">
         <div className="invoice-total-row">
-          <span>Subtotal</span>
+          <span>Total</span>
           <span>{formatNumber(invoice?.subTotal)}</span>
         </div>
         {isGst && (
@@ -1026,7 +1167,7 @@ const InvoiceFooter = ({
               <span>{formatNumber(toNumber(invoice?.totalGST) / 2)}</span>
             </div>
             <div className="invoice-total-row">
-              <span>Total GST</span>
+              <span>Add GST</span>
               <span>{formatNumber(invoice?.totalGST)}</span>
             </div>
           </>
@@ -1053,7 +1194,8 @@ const InvoiceFooter = ({
       </div>
       {isGst && (
         <div className="invoice-signature">
-          <div>For {shop.shopName}</div>
+          <div className="invoice-signature-for">FOR</div>
+          <div className="invoice-signature-company">{shop.shopName}</div>
           <img src="/signature.png" alt="Authorized signature" />
           <div>Proprietor / Authorised Signatory</div>
         </div>

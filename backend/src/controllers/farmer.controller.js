@@ -1,4 +1,29 @@
 import Farmer from "../models/Farmer.js";
+import Invoice from "../models/Invoice.js";
+import Transaction from "../models/Transaction.js";
+
+const attachCustomerStats = async (farmer) => {
+  const [invoices, payments] = await Promise.all([
+    Invoice.find({ farmer: farmer._id }).select("grandTotal"),
+    Transaction.find({ farmer: farmer._id, type: "payment" }).select("amount"),
+  ]);
+
+  const data = farmer.toObject ? farmer.toObject() : farmer;
+
+  return {
+    ...data,
+    totalOrders: invoices.length,
+    totalPurchase: invoices.reduce(
+      (total, invoice) => total + Number(invoice.grandTotal || 0),
+      0
+    ),
+    totalPaid: payments.reduce(
+      (total, payment) => total + Number(payment.amount || 0),
+      0
+    ),
+    outstandingBalance: Number(data.dueAmount || 0),
+  };
+};
 
 // ================= ADD FARMER =================
 
@@ -65,11 +90,12 @@ export const addFarmer = async (req, res) => {
 export const getAllFarmers = async (req, res) => {
   try {
     const farmers = await Farmer.find().sort({ createdAt: -1 });
+    const farmersWithStats = await Promise.all(farmers.map(attachCustomerStats));
 
     res.status(200).json({
       success: true,
-      totalFarmers: farmers.length,
-      farmers,
+      totalFarmers: farmersWithStats.length,
+      farmers: farmersWithStats,
     });
   } catch (error) {
     res.status(500).json({
@@ -90,9 +116,11 @@ export const getSingleFarmer = async (req, res) => {
       });
     }
 
+    const farmerWithStats = await attachCustomerStats(farmer);
+
     res.status(200).json({
       success: true,
-      farmer,
+      farmer: farmerWithStats,
     });
   } catch (error) {
     res.status(500).json({
@@ -183,11 +211,12 @@ export const searchFarmer = async (req, res) => {
         },
       ],
     });
+    const farmersWithStats = await Promise.all(farmers.map(attachCustomerStats));
 
     res.status(200).json({
       success: true,
-      totalResults: farmers.length,
-      farmers,
+      totalResults: farmersWithStats.length,
+      farmers: farmersWithStats,
     });
   } catch (error) {
     res.status(500).json({

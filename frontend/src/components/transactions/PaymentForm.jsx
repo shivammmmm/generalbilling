@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { 
   User, 
   IndianRupee, 
@@ -8,11 +9,11 @@ import {
   Smartphone, 
   Building2,
   CheckCircle2,
-  AlertCircle
 } from "lucide-react";
 import API from "../../services/api";
 
 const PaymentForm = ({ onSubmit, loading }) => {
+  const [searchParams] = useSearchParams();
   const [farmers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [formData, setFormData] = useState({
@@ -26,13 +27,27 @@ const PaymentForm = ({ onSubmit, loading }) => {
     const getCustomers = async () => {
       try {
         const { data } = await API.get("/farmers");
-        setCustomers(data.farmers);
+        const customerList = data.farmers || [];
+        const requestedCustomerId = searchParams.get("customerId");
+        const requestedCustomer = customerList.find(
+          (customer) => customer._id === requestedCustomerId
+        );
+
+        setCustomers(customerList);
+
+        if (requestedCustomer) {
+          setSelectedCustomer(requestedCustomer);
+          setFormData((prev) => ({
+            ...prev,
+            farmerId: requestedCustomer._id,
+          }));
+        }
       } catch (error) {
         console.log(error);
       }
     };
     getCustomers();
-  }, []);
+  }, [searchParams]);
 
   const handleCustomerChange = (e) => {
     const farmerId = e.target.value;
@@ -49,7 +64,8 @@ const PaymentForm = ({ onSubmit, loading }) => {
     e.preventDefault();
     if (!formData.farmerId) return alert("Please select a customer");
     if (selectedCustomer && parseFloat(formData.amount) > selectedCustomer.dueAmount) {
-      if (!window.confirm("Payment amount exceeds due amount. Continue?")) return;
+      alert("Payment amount exceeds due amount");
+      return;
     }
     onSubmit(formData);
   };
@@ -61,6 +77,7 @@ const PaymentForm = ({ onSubmit, loading }) => {
     { id: 'cash', label: 'Cash', icon: <Wallet size={18} /> },
     { id: 'upi', label: 'UPI / PhonePe', icon: <Smartphone size={18} /> },
     { id: 'bank', label: 'Bank Transfer', icon: <Building2 size={18} /> },
+    { id: 'cheque', label: 'Cheque', icon: <CreditCard size={18} /> },
   ];
 
   return (
@@ -135,7 +152,7 @@ const PaymentForm = ({ onSubmit, loading }) => {
 
             <div>
               <label className={labelClasses}>Payment Mode</label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {paymentModes.map((mode) => (
                   <button
                     key={mode.id}
