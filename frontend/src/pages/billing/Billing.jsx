@@ -10,12 +10,15 @@ import {
   Ruler,
   Trash2,
   User,
+  UserPlus,
   FileCheck,
   FileText,
+  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import API from "../../services/api";
 import InvoicePreview from "../../components/billing/InvoicePreview";
+import CustomerForm from "../../components/farmers/FarmerForm";
 import {
   RATE_TYPES,
   calculateInvoiceTotals,
@@ -42,6 +45,8 @@ const Billing = () => {
   const [productsList, setProductsList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
+  const [customerFormOpen, setCustomerFormOpen] = useState(false);
+  const [customerSaving, setCustomerSaving] = useState(false);
 
   // "gst_invoice" = GST Invoice (GST-INV-XXXX)
   // "order"       = Non-GST Order / Kaccha Bill (ORD-XXXX)
@@ -85,39 +90,6 @@ const Billing = () => {
       }
     }
   };
-
-  useEffect(() => {
-    const handleKeys = (e) => {
-      if (e.altKey) {
-        const key = e.key.toLowerCase();
-        if (key === "a") {
-          e.preventDefault();
-          addProductRow();
-          toast.success("New product row added");
-        } else if (key === "g") {
-          e.preventDefault();
-          setDocumentType("gst_invoice");
-          toast.success("Switched to GST Invoice");
-        } else if (key === "o") {
-          e.preventDefault();
-          setDocumentType("order");
-          toast.success("Switched to Non-GST Order");
-        } else if (key === "f") {
-          e.preventDefault();
-          const dropdown = document.getElementById("customer-select-dropdown");
-          if (dropdown) dropdown.focus();
-        }
-      }
-
-      if (e.ctrlKey && e.key === "Enter") {
-        e.preventDefault();
-        handleSubmit(e);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeys);
-    return () => window.removeEventListener("keydown", handleKeys);
-  }, [formData, documentType, loading]);
 
   useEffect(() => {
     const getData = async () => {
@@ -185,6 +157,39 @@ const Billing = () => {
         withProductRate(item, nextRateType)
       ),
     }));
+  };
+
+  const createCustomer = async (customerData) => {
+    try {
+      setCustomerSaving(true);
+      const { data } = await API.post("/farmers", customerData);
+      const createdCustomer = data.farmer;
+
+      if (!createdCustomer?._id) {
+        throw new Error("Customer created but response was incomplete");
+      }
+
+      const nextRateType = createdCustomer.defaultRateType || "Rate A";
+
+      setCustomers((prev) => [
+        createdCustomer,
+        ...prev.filter((customer) => customer._id !== createdCustomer._id),
+      ]);
+      setFormData((prev) => ({
+        ...prev,
+        farmerId: createdCustomer._id,
+        rateType: nextRateType,
+        products: prev.products.map((item) =>
+          withProductRate(item, nextRateType)
+        ),
+      }));
+      setCustomerFormOpen(false);
+      toast.success("Customer added and selected");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to add customer");
+    } finally {
+      setCustomerSaving(false);
+    }
   };
 
   const handleRateTypeChange = (rateType) => {
@@ -307,6 +312,41 @@ const Billing = () => {
     }
   };
 
+  useEffect(() => {
+    const handleKeys = (e) => {
+      if (e.altKey) {
+        const key = e.key.toLowerCase();
+        if (key === "a") {
+          e.preventDefault();
+          addProductRow();
+          toast.success("New product row added");
+        } else if (key === "g") {
+          e.preventDefault();
+          setDocumentType("gst_invoice");
+          toast.success("Switched to GST Invoice");
+        } else if (key === "o") {
+          e.preventDefault();
+          setDocumentType("order");
+          toast.success("Switched to Non-GST Order");
+        } else if (key === "f") {
+          e.preventDefault();
+          const dropdown = document.getElementById("customer-select-dropdown");
+          if (dropdown) dropdown.focus();
+        }
+      }
+
+      if (e.ctrlKey && e.key === "Enter") {
+        e.preventDefault();
+        handleSubmit(e);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeys);
+    return () => window.removeEventListener("keydown", handleKeys);
+    // Keep this listener synced to the active billing form state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData, documentType, loading]);
+
   if (pageLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
@@ -411,9 +451,19 @@ const Billing = () => {
           <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
               <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-widest text-slate-600">
-                  Customer
-                </label>
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-xs font-black uppercase tracking-widest text-slate-600">
+                    Customer
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setCustomerFormOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 transition hover:border-blue-200 hover:bg-blue-100"
+                  >
+                    <UserPlus size={14} />
+                    Add
+                  </button>
+                </div>
                 <div className="relative">
                   <User
                     size={18}
@@ -808,6 +858,32 @@ const Billing = () => {
           />
         </aside>
       </div>
+
+      {customerFormOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 p-4 sm:p-6">
+          <div className="w-full max-w-4xl">
+            <div className="mb-3 flex items-center justify-between gap-4 rounded-2xl bg-white px-4 py-3 shadow-sm">
+              <div>
+                <p className="text-base font-black text-slate-950">
+                  Add Customer
+                </p>
+                <p className="text-xs font-semibold text-slate-500">
+                  After saving, the customer will be selected in this bill.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCustomerFormOpen(false)}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                aria-label="Close customer form"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <CustomerForm onSubmit={createCustomer} loading={customerSaving} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
