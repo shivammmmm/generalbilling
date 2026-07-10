@@ -182,6 +182,7 @@ const A4_PRINT_STYLE = `
 
 .invoice-buyer-name {
   margin: 2px 0 0;
+  text-align: center;
   font-size: 13.2px;
   font-weight: 900;
   line-height: 1.25;
@@ -920,8 +921,6 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
     .filter(Boolean)
     .join(", ");
 
-  const paymentMode = invoice?.billingType === "cash" ? "Cash" : "Credit";
-
   return (
     <>
       <div className="invoice-top-line">
@@ -970,8 +969,8 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
             <strong>{formatDate(invoice?.createdAt)}</strong>
           </div>
           <div className="invoice-meta-row">
-            <strong>Payment Mode</strong>
-            <strong>{paymentMode}</strong>
+            <strong>Bill Time</strong>
+            <strong>{formatTime(invoice?.createdAt)}</strong>
           </div>
           <div className="invoice-meta-row">
             <strong>Document Type</strong>
@@ -1211,6 +1210,15 @@ const formatDate = (dateString) => {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();
   return `${day}/${month}/${year}`;
+};
+
+const formatTime = (dateString) => {
+  if (!dateString) return "-";
+  return new Date(dateString).toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
 };
 
 const formatNumber = (value) =>

@@ -15,6 +15,19 @@ const normalizeAmount = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const dateWithPreservedTime = (dateValue, timeSource = new Date()) => {
+  if (!dateValue) return undefined;
+  const selectedDate = new Date(`${dateValue}T00:00:00`);
+  const source = new Date(timeSource);
+  selectedDate.setHours(
+    source.getHours(),
+    source.getMinutes(),
+    source.getSeconds(),
+    source.getMilliseconds()
+  );
+  return selectedDate;
+};
+
 const getReceivedAmount = (billingType, grandTotal, receivedAmount = 0) => {
   if (billingType === "cash") return grandTotal;
 
@@ -250,7 +263,7 @@ export const createInvoice = async (req, res) => {
 
       paymentStatus,
 
-      createdAt: invoiceDate ? new Date(invoiceDate) : undefined,
+      createdAt: dateWithPreservedTime(invoiceDate),
     });
 
     await createInvoiceLedgerEntries({
@@ -522,7 +535,7 @@ export const updateInvoice = async (req, res) => {
     invoice.balanceDue = balanceDue;
     invoice.paymentStatus = paymentStatus;
     if (invoiceDate) {
-      invoice.createdAt = new Date(invoiceDate);
+      invoice.createdAt = dateWithPreservedTime(invoiceDate, invoice.createdAt);
     }
 
     await invoice.save();

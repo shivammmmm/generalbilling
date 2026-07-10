@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowDownLeft,
@@ -61,6 +61,33 @@ const CustomerDetails = () => {
   });
   const [loading, setLoading] = useState(true);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [filters, setFilters] = useState({ search: "", fromDate: "", toDate: "", type: "all", item: "all", minAmount: "", maxAmount: "" });
+
+  const itemOptions = useMemo(
+    () => [...new Set(history.flatMap((entry) => entry.itemNames || []))].sort(),
+    [history]
+  );
+
+  const filteredHistory = useMemo(() => {
+    const query = filters.search.trim().toLowerCase();
+    return history.filter((entry) => {
+      const entryDate = new Date(entry.date || entry.createdAt);
+      const amount = Number(entry.debit || entry.credit || 0);
+      const matchesSearch = !query || [entry.voucherNo, entry.invoiceNo, entry.description, ...(entry.itemNames || [])]
+        .some((value) => String(value || "").toLowerCase().includes(query));
+
+      return matchesSearch
+        && (!filters.fromDate || entryDate >= new Date(`${filters.fromDate}T00:00:00`))
+        && (!filters.toDate || entryDate <= new Date(`${filters.toDate}T23:59:59.999`))
+        && (filters.type === "all" || entry.type === filters.type)
+        && (filters.item === "all" || entry.itemNames?.includes(filters.item))
+        && (filters.minAmount === "" || amount >= Number(filters.minAmount))
+        && (filters.maxAmount === "" || amount <= Number(filters.maxAmount));
+    });
+  }, [filters, history]);
+
+  const updateFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
+  const clearFilters = () => setFilters({ search: "", fromDate: "", toDate: "", type: "all", item: "all", minAmount: "", maxAmount: "" });
 
   useEffect(() => {
     const styleTag = document.createElement("style");
@@ -250,6 +277,27 @@ const CustomerDetails = () => {
           <h2 className="text-xl font-black text-slate-950">
             Customer Statement
           </h2>
+          <div className="statement-print-hidden mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <input type="search" value={filters.search} onChange={(event) => updateFilter("search", event.target.value)} placeholder="Invoice, voucher, item..." className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold outline-none focus:border-blue-500" />
+            <input type="date" value={filters.fromDate} onChange={(event) => updateFilter("fromDate", event.target.value)} aria-label="From date" className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold outline-none focus:border-blue-500" />
+            <input type="date" value={filters.toDate} onChange={(event) => updateFilter("toDate", event.target.value)} aria-label="To date" className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold outline-none focus:border-blue-500" />
+            <select value={filters.type} onChange={(event) => updateFilter("type", event.target.value)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold outline-none focus:border-blue-500">
+              <option value="all">All transaction types</option>
+              <option value="credit">Invoices / Credit</option>
+              <option value="payment">Payments</option>
+              <option value="opening">Opening balance</option>
+            </select>
+            <select value={filters.item} onChange={(event) => updateFilter("item", event.target.value)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold outline-none focus:border-blue-500">
+              <option value="all">All items</option>
+              {itemOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+            <input type="number" min="0" value={filters.minAmount} onChange={(event) => updateFilter("minAmount", event.target.value)} placeholder="Minimum amount" className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold outline-none focus:border-blue-500" />
+            <input type="number" min="0" value={filters.maxAmount} onChange={(event) => updateFilter("maxAmount", event.target.value)} placeholder="Maximum amount" className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold outline-none focus:border-blue-500" />
+            <button type="button" onClick={clearFilters} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-black text-slate-700 hover:bg-slate-50">Clear Filters</button>
+          </div>
+          <p className="statement-print-hidden mt-3 text-xs font-bold text-slate-500">
+            Showing {filteredHistory.length} of {history.length} entries
+          </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-left">
@@ -266,17 +314,17 @@ const CustomerDetails = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {history.length === 0 ? (
+              {filteredHistory.length === 0 ? (
                 <tr>
                   <td
                     colSpan="7"
                     className="px-5 py-12 text-center text-sm font-semibold text-slate-400"
                   >
-                    No statement entries found.
+                    No statement entries match the selected filters.
                   </td>
                 </tr>
               ) : (
-                history.map((item) => (
+                filteredHistory.map((item) => (
                   <tr key={item._id}>
                     <td className="px-5 py-4 text-sm font-semibold text-slate-600">
                       {new Date(item.date || item.createdAt).toLocaleDateString("en-IN")}
