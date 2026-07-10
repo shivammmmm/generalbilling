@@ -63,7 +63,12 @@ export const buildCustomerStatement = async (farmerId) => {
   const [farmer, invoices, transactions] = await Promise.all([
     Farmer.findById(farmerId),
     Invoice.find({ farmer: farmerId }),
-    Transaction.find({ farmer: farmerId }).sort({ createdAt: 1, _id: 1 }),
+    Transaction.find({ farmer: farmerId })
+      .populate({
+        path: "invoice",
+        populate: { path: "products.product", select: "productName" },
+      })
+      .sort({ createdAt: 1, _id: 1 }),
   ]);
 
   if (!farmer) return null;
@@ -83,6 +88,13 @@ export const buildCustomerStatement = async (farmerId) => {
       invoiceNo: entry.invoiceNumber || "-",
       description: entry.description || "",
       paymentMode: entry.paymentMode || "",
+      itemNames: [
+        ...new Set(
+          (entry.invoice?.products || [])
+            .map((item) => item.product?.productName)
+            .filter(Boolean)
+        ),
+      ],
       type: entry.type,
       debit,
       credit,
