@@ -25,8 +25,8 @@ const MainLayout = ({ children }) => {
           />
         )}
 
-        <main className="flex min-h-screen flex-1 flex-col transition-all duration-300 md:ml-[280px]">
-          <div className="flex-1 space-y-8 p-4 md:p-8">
+        <main className="flex min-h-screen min-w-0 flex-1 flex-col transition-all duration-300 md:ml-[280px]">
+          <div className="min-w-0 flex-1 space-y-8 p-4 md:p-8">
             <div className="flex items-center justify-between gap-4 md:hidden">
               <button
                 type="button"

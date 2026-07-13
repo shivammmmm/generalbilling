@@ -25,6 +25,8 @@ const FALLBACK_SHOP = {
 };
 
 const ORDER_PAYMENT_QR = "/payment-qr-crop.jpeg";
+const ORDER_LOGO_NAME = "Walia's Creative";
+const ORDER_SERVICES = ["Solvent", "Eco-Solvent", "Glow Sign Board", "Signage Solutions"];
 
 const A4_PRINT_STYLE = `
 .invoice-shell {
@@ -53,6 +55,7 @@ const A4_PRINT_STYLE = `
   background: #ffffff;
   color: #111827;
   font-family: "Segoe UI", Arial, sans-serif;
+  font-weight: 700;
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
   page-break-after: always;
   break-after: page;
@@ -106,14 +109,14 @@ const A4_PRINT_STYLE = `
   gap: 8px;
   border-bottom: 1.2px solid #111827;
   padding: 4px 9px;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 800;
   letter-spacing: 0;
   line-height: 1.3;
 }
 
 .invoice-document-heading {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -134,7 +137,7 @@ const A4_PRINT_STYLE = `
 
 .invoice-title p {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.4;
 }
@@ -145,7 +148,7 @@ const A4_PRINT_STYLE = `
   background: #f3f6fb;
   padding: 6px 12px;
   text-align: center;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 800;
   line-height: 1.3;
 }
@@ -158,7 +161,7 @@ const A4_PRINT_STYLE = `
   padding: 6px 14px;
   text-align: center;
   border-bottom: 1.2px solid #111827;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 800;
   line-height: 1.45;
 }
@@ -167,7 +170,7 @@ const A4_PRINT_STYLE = `
   display: grid;
   grid-template-columns: 58% 42%;
   border-bottom: 1.2px solid #111827;
-  font-size: 11.2px;
+  font-size: 13px;
 }
 
 .invoice-buyer-box,
@@ -183,7 +186,7 @@ const A4_PRINT_STYLE = `
 .invoice-buyer-name {
   margin: 2px 0 0;
   text-align: center;
-  font-size: 13.2px;
+  font-size: 15px;
   font-weight: 900;
   line-height: 1.25;
   text-transform: uppercase;
@@ -191,7 +194,7 @@ const A4_PRINT_STYLE = `
 
 .invoice-muted-label {
   color: #475569;
-  font-size: 10.6px;
+  font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0;
@@ -200,15 +203,16 @@ const A4_PRINT_STYLE = `
 .invoice-buyer-label {
   display: block;
   text-align: center;
-  font-size: 13.4px;
+  font-size: 15px;
   font-weight: 900;
 }
 
 .invoice-buyer-details {
   margin-top: 5px;
   line-height: 1.55;
-  font-size: 11.4px;
+  font-size: 13px;
   font-weight: 700;
+  text-align: center;
 }
 
 .invoice-meta-row {
@@ -216,14 +220,9 @@ const A4_PRINT_STYLE = `
   grid-template-columns: 45% 55%;
   gap: 8px;
   padding: 5px 0;
-  border-bottom: 1px solid #d7dde7;
   align-items: center;
-  font-size: 11.3px;
+  font-size: 13px;
   line-height: 1.35;
-}
-
-.invoice-meta-row:last-child {
-  border-bottom: 0;
 }
 
 .invoice-meta-row strong:first-child {
@@ -231,7 +230,7 @@ const A4_PRINT_STYLE = `
 }
 
 .invoice-meta-row strong:last-child {
-  font-size: 11.9px;
+  font-size: 13.5px;
   font-weight: 900;
 }
 
@@ -254,7 +253,7 @@ const A4_PRINT_STYLE = `
   flex: 1;
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: 9.8px;
+  font-size: 11.5px;
   height: 100%;
 }
 
@@ -264,7 +263,7 @@ const A4_PRINT_STYLE = `
   border-bottom: 1.2px solid #111827;
   padding: 6px 5px;
   text-align: center;
-  font-size: 10.3px;
+  font-size: 12px;
   font-weight: 900;
   line-height: 1.2;
   text-transform: uppercase;
@@ -278,7 +277,6 @@ const A4_PRINT_STYLE = `
 .invoice-table td {
   height: 7.2mm;
   border-right: 1px solid #111827;
-  border-bottom: 1px solid #cbd5e1;
   padding: 4px 5px;
   vertical-align: middle;
   line-height: 1.28;
@@ -294,14 +292,14 @@ const A4_PRINT_STYLE = `
 }
 
 .invoice-table .numeric-highlight {
-  font-size: 10.3px;
+  font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
 }
 
 .invoice-table .gst-rate-cell,
 .invoice-table .amount-highlight {
-  font-size: 10.7px;
+  font-size: 12.5px;
   font-weight: 900;
   white-space: nowrap;
 }
@@ -327,7 +325,7 @@ const A4_PRINT_STYLE = `
 .invoice-continued {
   margin-top: 6px;
   color: #64748b;
-  font-size: 9px;
+  font-size: 10.5px;
   font-weight: 700;
   text-align: right;
 }
@@ -347,7 +345,8 @@ const A4_PRINT_STYLE = `
   min-height: 34mm;
   border-right: 1.2px solid #111827;
   padding: 8px;
-  font-size: 10.3px;
+  font-size: 12px;
+  font-weight: 700;
   line-height: 1.45;
 }
 
@@ -358,7 +357,7 @@ const A4_PRINT_STYLE = `
 .invoice-section-title {
   display: block;
   margin-bottom: 5px;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 900;
   text-decoration: underline;
   text-transform: uppercase;
@@ -368,7 +367,7 @@ const A4_PRINT_STYLE = `
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 7px;
-  font-size: 10.4px;
+  font-size: 12px;
 }
 
 .invoice-tax-table th,
@@ -383,12 +382,12 @@ const A4_PRINT_STYLE = `
 
 .invoice-tax-table th {
   background: #f3f6fb;
-  font-size: 10.8px;
+  font-size: 12.5px;
   font-weight: 900;
 }
 
 .invoice-tax-table td {
-  font-size: 10.6px;
+  font-size: 12.5px;
   font-weight: 800;
 }
 
@@ -397,7 +396,7 @@ const A4_PRINT_STYLE = `
   padding-left: 0;
   list-style-position: inside;
   text-align: center;
-  font-size: 10.6px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -411,7 +410,7 @@ const A4_PRINT_STYLE = `
   justify-content: space-between;
   gap: 8px;
   padding: 4px 0;
-  font-size: 10.8px;
+  font-size: 12.5px;
   font-weight: 900;
   line-height: 1.3;
 }
@@ -421,7 +420,7 @@ const A4_PRINT_STYLE = `
 }
 
 .invoice-total-row span:last-child {
-  font-size: 11.2px;
+  font-size: 13px;
 }
 
 .invoice-total-row.net {
@@ -429,11 +428,11 @@ const A4_PRINT_STYLE = `
   border-top: 1px solid #111827;
   padding-top: 6px;
   color: #991b1b;
-  font-size: 13.2px;
+  font-size: 15px;
 }
 
 .invoice-total-row.net span:last-child {
-  font-size: 14.4px;
+  font-size: 16.5px;
 }
 
 .invoice-signature-row {
@@ -445,30 +444,26 @@ const A4_PRINT_STYLE = `
   min-height: 26mm;
 }
 
-.invoice-signature-row.order-only {
-  display: block;
-  min-height: 12mm;
-}
-
 .invoice-amount-words {
-  font-size: 11.2px;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1.5;
 }
 
 .invoice-signature {
   text-align: center;
-  font-size: 10.8px;
+  font-size: 12.5px;
   font-weight: 800;
   line-height: 1.25;
 }
 
 .invoice-signature-for {
-  font-size: 11.2px;
+  font-size: 13px;
   font-weight: 900;
 }
 
 .invoice-signature-company {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 900;
 }
 
@@ -498,7 +493,7 @@ const A4_PRINT_STYLE = `
 
 .invoice-payment-qr strong {
   display: block;
-  font-size: 10.8px;
+  font-size: 12.5px;
   text-transform: uppercase;
 }
 
@@ -506,6 +501,113 @@ const A4_PRINT_STYLE = `
   display: block;
   margin-top: 2px;
   word-break: break-all;
+}
+
+.order-letterhead-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px 6px;
+  border-bottom: 1.2px solid #111827;
+}
+
+.order-logo {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.order-checklist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.65;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.order-checklist li::before {
+  content: "\\2611";
+  margin-right: 5px;
+}
+
+.order-address-line {
+  padding: 6px 14px;
+  text-align: center;
+  border-bottom: 1.2px solid #111827;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.order-party-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 14px;
+  border-bottom: 1.2px solid #111827;
+  font-size: 14px;
+  font-weight: 800;
+  gap: 12px;
+}
+
+.order-party-right {
+  text-align: right;
+  line-height: 1.55;
+}
+
+.order-footer {
+  border-top: 1.2px solid #111827;
+  padding: 8px 14px 12px;
+}
+
+.order-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #d7dde7;
+}
+
+.order-remarks {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.order-total {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 900;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.order-total strong {
+  font-size: 18px;
+}
+
+.order-bottom-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-top: 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.order-signature {
+  font-size: 13.5px;
+  font-weight: 900;
 }
 
 @media print {
@@ -682,8 +784,8 @@ const PrintInvoice = () => {
   const roundOff = grandTotalRounded - grandTotal;
   const amountInWords = numberToWords(grandTotalRounded);
 
-  const getPdfFilename = () =>
-    `${isGst ? "GST-Invoice" : "Order"}-${invoice?.invoiceNumber || "bill"}.pdf`;
+  const getExportFilename = (extension) =>
+    `${isGst ? "GST-Invoice" : "Order"}-${invoice?.invoiceNumber || "bill"}.${extension}`;
 
   const getPdfOptions = (filename, element) => {
     const firstPage = element.querySelector(".invoice-page");
@@ -715,7 +817,7 @@ const PrintInvoice = () => {
     };
   };
 
-  const withPdfRender = async (element, action) => {
+  const withCaptureRender = async (element, action) => {
     element.classList.add("pdf-render");
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     try {
@@ -730,22 +832,41 @@ const PrintInvoice = () => {
     if (!element) return null;
 
     const html2pdf = (await import("html2pdf.js")).default;
-    return withPdfRender(element, () =>
+    return withCaptureRender(element, () =>
       html2pdf().set(getPdfOptions(filename, element)).from(element).output("blob")
     );
   };
+
+  const createImageBlob = async (mimeType = "image/jpeg") => {
+    const element = document.getElementById("invoice-a4-wrapper");
+    if (!element) return null;
+
+    const html2canvas = (await import("html2canvas")).default;
+    return withCaptureRender(element, async () => {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+      });
+      return new Promise((resolve) => canvas.toBlob(resolve, mimeType, 0.95));
+    });
+  };
+
+  const createExportBlob = (filename) =>
+    isGst ? createPdfBlob(filename) : createImageBlob("image/jpeg");
 
   const handlePrint = () => {
     window.print();
   };
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadFile = async () => {
     if (!invoice || pdfBusy) return;
 
     setPdfBusy(true);
     try {
-      const filename = getPdfFilename();
-      const blob = await createPdfBlob(filename);
+      const filename = getExportFilename(isGst ? "pdf" : "jpg");
+      const blob = await createExportBlob(filename);
       if (blob) downloadBlob(blob, filename);
     } finally {
       setPdfBusy(false);
@@ -763,17 +884,21 @@ const PrintInvoice = () => {
 
     setWhatsAppBusy(true);
     try {
-      const filename = getPdfFilename();
-      const blob = await createPdfBlob(filename);
+      const extension = isGst ? "pdf" : "jpg";
+      const fileTypeLabel = isGst ? "PDF" : "Image";
+      const filename = getExportFilename(extension);
+      const blob = await createExportBlob(filename);
       if (!blob) return;
 
-      const pdfFile = new File([blob], filename, { type: "application/pdf" });
+      const sharedFile = new File([blob], filename, {
+        type: isGst ? "application/pdf" : "image/jpeg",
+      });
       const date = formatDate(invoice?.createdAt);
-      const message = `${docLabel} #${invoice?.invoiceNumber}\nDate: ${date}\nCustomer: ${invoice?.farmer?.name || "-"}\nAmount: Rs ${formatNumber(grandTotalRounded)}\n\nPDF invoice is attached.`;
+      const message = `${docLabel} #${invoice?.invoiceNumber}\nDate: ${date}\nCustomer: ${invoice?.farmer?.name || "-"}\nAmount: Rs ${formatNumber(grandTotalRounded)}\n\n${fileTypeLabel} invoice is attached.`;
 
-      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+      if (navigator.canShare && navigator.canShare({ files: [sharedFile] })) {
         await navigator.share({
-          files: [pdfFile],
+          files: [sharedFile],
           title: filename,
           text: message,
         });
@@ -781,11 +906,11 @@ const PrintInvoice = () => {
       }
 
       downloadBlob(blob, filename);
-      const fallbackMessage = `${message}\n\nPDF has been downloaded. Please attach the downloaded file in this WhatsApp chat.`;
+      const fallbackMessage = `${message}\n\n${fileTypeLabel} has been downloaded. Please attach the downloaded file in this WhatsApp chat.`;
       window.open(`https://wa.me/${phone}?text=${encodeURIComponent(fallbackMessage)}`, "_blank");
     } catch (err) {
       console.error("WhatsApp share failed:", err);
-      alert("PDF share nahi ho paya. Please Save PDF karke WhatsApp me attach karein.");
+      alert("File share nahi ho paya. Please Save file karke WhatsApp me attach karein.");
     } finally {
       setWhatsAppBusy(false);
     }
@@ -825,7 +950,7 @@ const PrintInvoice = () => {
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
             <MessageCircle size={17} />
-            {whatsAppBusy ? "Preparing PDF..." : "Send PDF on WhatsApp"}
+            {whatsAppBusy ? "Preparing..." : `Send ${isGst ? "PDF" : "Image"} on WhatsApp`}
           </button>
 
           <Link
@@ -837,12 +962,12 @@ const PrintInvoice = () => {
           </Link>
 
           <button
-            onClick={handleDownloadPDF}
+            onClick={handleDownloadFile}
             disabled={pdfBusy}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
             <Download size={17} />
-            {pdfBusy ? "Saving..." : "Save PDF A4"}
+            {pdfBusy ? "Saving..." : isGst ? "Save PDF A4" : "Save Image"}
           </button>
 
           <button
@@ -914,6 +1039,10 @@ const PrintInvoice = () => {
 };
 
 const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop }) => {
+  if (!isGst) {
+    return <OrderHeader invoice={invoice} shop={shop} />;
+  }
+
   const customerAddress = [
     invoice?.farmer?.address,
     invoice?.farmer?.village,
@@ -931,22 +1060,18 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
         </span>
       </div>
 
-      {isGst && (
-        <>
-          <div className="invoice-title">
-            <h1>{shop.shopName}</h1>
-            <p>{shop.shopAddress}</p>
-          </div>
+      <div className="invoice-title">
+        <h1>{shop.shopName}</h1>
+        <p>{shop.shopAddress}</p>
+      </div>
 
-          <div className="invoice-business-line">{shop.businessLine}</div>
+      <div className="invoice-business-line">{shop.businessLine}</div>
 
-          <div className="invoice-contact-line">
-            Mobile : {shop.shopMobile}
-            {shop.shopEmail ? ` | Email : ${shop.shopEmail}` : ""}
-            {shop.gstNumber ? ` | GSTIN : ${shop.gstNumber}` : ""}
-          </div>
-        </>
-      )}
+      <div className="invoice-contact-line">
+        Mobile : {shop.shopMobile}
+        {shop.shopEmail ? ` | Email : ${shop.shopEmail}` : ""}
+        {shop.gstNumber ? ` | GSTIN : ${shop.gstNumber}` : ""}
+      </div>
 
       <div className="invoice-party-grid">
         <div className="invoice-buyer-box">
@@ -955,7 +1080,7 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
           <div className="invoice-buyer-details">
             <div>{customerAddress || "-"}</div>
             <div>Mobile: {invoice?.farmer?.mobileNumber || "-"}</div>
-            {isGst && <div>GSTIN: {invoice?.farmer?.gstNumber || "-"}</div>}
+            <div>GSTIN: {invoice?.farmer?.gstNumber || "-"}</div>
           </div>
         </div>
 
@@ -974,7 +1099,7 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
           </div>
           <div className="invoice-meta-row">
             <strong>Document Type</strong>
-            <strong>{isGst ? "GST Invoice" : "Order"}</strong>
+            <strong>GST Invoice</strong>
           </div>
         </div>
       </div>
@@ -982,19 +1107,48 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
   );
 };
 
+const OrderHeader = ({ invoice, shop }) => (
+  <>
+    <div className="order-letterhead-top">
+      <h1 className="order-logo">{ORDER_LOGO_NAME}</h1>
+      <ul className="order-checklist">
+        {ORDER_SERVICES.map((service) => (
+          <li key={service}>{service}</li>
+        ))}
+      </ul>
+    </div>
+
+    <div className="order-address-line">
+      {shop.shopAddress}
+      {shop.shopMobile ? ` | Handfone : ${shop.shopMobile}` : ""}
+      {shop.shopEmail ? ` | e-mail : ${shop.shopEmail}` : ""}
+    </div>
+
+    <div className="order-party-row">
+      <div>
+        M/s <strong>{invoice?.farmer?.name || "-"}</strong>
+      </div>
+      <div className="order-party-right">
+        <div>Inv.No. <strong>{invoice?.invoiceNumber}</strong></div>
+        <div>Date <strong>{formatDate(invoice?.createdAt)}</strong></div>
+      </div>
+    </div>
+  </>
+);
+
 const ItemsTable = ({ invoice, isGst, pageItems, serialOffset, showPageTotal }) => {
   return (
     <table className="invoice-table">
       <colgroup>
         <col style={{ width: "6%" }} />
-        <col style={{ width: isGst ? "26%" : "37%" }} />
+        <col style={{ width: isGst ? "26%" : "40%" }} />
         {isGst && <col style={{ width: "10%" }} />}
         {isGst && <col style={{ width: "8%" }} />}
-        <col style={{ width: "12%" }} />
-        <col style={{ width: "10%" }} />
-        <col style={{ width: "8%" }} />
-        <col style={{ width: "10%" }} />
-        <col style={{ width: "10%" }} />
+        {isGst && <col style={{ width: "12%" }} />}
+        <col style={{ width: isGst ? "10%" : "16%" }} />
+        <col style={{ width: isGst ? "8%" : "12%" }} />
+        <col style={{ width: isGst ? "10%" : "13%" }} />
+        <col style={{ width: isGst ? "10%" : "13%" }} />
       </colgroup>
       <thead>
         <tr>
@@ -1002,7 +1156,7 @@ const ItemsTable = ({ invoice, isGst, pageItems, serialOffset, showPageTotal }) 
           <th>Particulars</th>
           {isGst && <th>HSN/SAC</th>}
           {isGst && <th>GST %</th>}
-          <th>Size</th>
+          {isGst && <th>Size</th>}
           <th>Sq.Ft.</th>
           <th>Qty.</th>
           <th>Rate</th>
@@ -1032,9 +1186,11 @@ const ItemsTable = ({ invoice, isGst, pageItems, serialOffset, showPageTotal }) 
                   {formatCompactNumber(item.gstRate)}
                 </td>
               )}
-              <td className="center-cell">
-                {formatCompactNumber(item.width)} x {formatCompactNumber(item.length)}
-              </td>
+              {isGst && (
+                <td className="center-cell">
+                  {formatCompactNumber(item.width)} x {formatCompactNumber(item.length)}
+                </td>
+              )}
               <td className="center-cell">{formatCompactNumber(sqFt)}</td>
               <td className="center-cell">{formatCompactNumber(quantity)}</td>
               <td className="rate-cell numeric-highlight">{formatNumber(item.selectedRate)}</td>
@@ -1045,14 +1201,14 @@ const ItemsTable = ({ invoice, isGst, pageItems, serialOffset, showPageTotal }) 
 
         <FillerRow isGst={isGst} />
       </tbody>
-      {showPageTotal && (
+      {showPageTotal && isGst && (
         <tfoot>
           <tr>
             <td />
             <td>Total Taxable Amount</td>
             {isGst && <td />}
             {isGst && <td />}
-            <td />
+            {isGst && <td />}
             <td />
             <td />
             <td />
@@ -1070,7 +1226,7 @@ const FillerRow = ({ isGst }) => (
     <td />
     {isGst && <td />}
     {isGst && <td />}
-    <td />
+    {isGst && <td />}
     <td />
     <td />
     <td />
@@ -1087,16 +1243,15 @@ const InvoiceFooter = ({
   shop,
   taxBreakup,
   termsList,
-}) => (
-  <div className="invoice-footer">
-    <div
-      className="invoice-footer-grid"
-      style={{
-        gridTemplateColumns: isGst ? "45% 31% 24%" : "38% 38% 24%",
-      }}
-    >
-      <div className="invoice-footer-cell">
-        {isGst && (
+}) => {
+  if (!isGst) {
+    return <OrderFooter grandTotalRounded={grandTotalRounded} shop={shop} />;
+  }
+
+  return (
+    <div className="invoice-footer">
+      <div className="invoice-footer-grid" style={{ gridTemplateColumns: "45% 31% 24%" }}>
+        <div className="invoice-footer-cell">
           <table className="invoice-tax-table">
             <thead>
               <tr>
@@ -1119,86 +1274,98 @@ const InvoiceFooter = ({
               ))}
             </tbody>
           </table>
-        )}
 
-        <span className="invoice-section-title">Terms & Conditions</span>
-        <ol className="invoice-terms">
-          {termsList.map((term) => (
-            <li key={term}>{term}</li>
-          ))}
-        </ol>
-      </div>
-
-      <div className="invoice-footer-cell">
-        {isGst ? (
-          <>
-            <span className="invoice-section-title">Bank Details</span>
-            <div>A/c Name: <strong>{shop.accountHolderName}</strong></div>
-            <div>A/c No.: <strong>{shop.accountNumber}</strong></div>
-            <div>Bank: <strong>{shop.bankName}</strong></div>
-            <div>Branch: <strong>{shop.bankBranch}</strong></div>
-            <div>IFSC: <strong>{shop.ifscCode}</strong></div>
-          </>
-        ) : (
-          <div className="invoice-payment-qr">
-            <img src={ORDER_PAYMENT_QR} alt="Scan QR to pay" />
-            <div>
-              <strong>Scan to Pay</strong>
-              <span>UPI: {shop.paymentUpiId}</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="invoice-footer-cell">
-        <div className="invoice-total-row">
-          <span>Total</span>
-          <span>{formatNumber(invoice?.subTotal)}</span>
+          <span className="invoice-section-title">Terms & Conditions</span>
+          <ol className="invoice-terms">
+            {termsList.map((term) => (
+              <li key={term}>{term}</li>
+            ))}
+          </ol>
         </div>
-        {isGst && (
-          <>
-            <div className="invoice-total-row">
-              <span>CGST</span>
-              <span>{formatNumber(toNumber(invoice?.totalGST) / 2)}</span>
-            </div>
-            <div className="invoice-total-row">
-              <span>SGST</span>
-              <span>{formatNumber(toNumber(invoice?.totalGST) / 2)}</span>
-            </div>
-            <div className="invoice-total-row">
-              <span>Add GST</span>
-              <span>{formatNumber(invoice?.totalGST)}</span>
-            </div>
-          </>
-        )}
-        {Math.abs(roundOff) >= 0.01 && (
+
+        <div className="invoice-footer-cell">
+          <span className="invoice-section-title">Bank Details</span>
+          <div>A/c Name: <strong>{shop.accountHolderName}</strong></div>
+          <div>A/c No.: <strong>{shop.accountNumber}</strong></div>
+          <div>Bank: <strong>{shop.bankName}</strong></div>
+          <div>Branch: <strong>{shop.bankBranch}</strong></div>
+          <div>IFSC: <strong>{shop.ifscCode}</strong></div>
+        </div>
+
+        <div className="invoice-footer-cell">
           <div className="invoice-total-row">
-            <span>Round Off</span>
-            <span>{formatNumber(roundOff)}</span>
+            <span>Total</span>
+            <span>{formatNumber(invoice?.subTotal)}</span>
           </div>
-        )}
-        <div className="invoice-total-row net">
-          <span>Net Total</span>
-          <span>{formatNumber(grandTotalRounded)}</span>
+          <div className="invoice-total-row">
+            <span>CGST</span>
+            <span>{formatNumber(toNumber(invoice?.totalGST) / 2)}</span>
+          </div>
+          <div className="invoice-total-row">
+            <span>SGST</span>
+            <span>{formatNumber(toNumber(invoice?.totalGST) / 2)}</span>
+          </div>
+          <div className="invoice-total-row">
+            <span>Add GST</span>
+            <span>{formatNumber(invoice?.totalGST)}</span>
+          </div>
+          {Math.abs(roundOff) >= 0.01 && (
+            <div className="invoice-total-row">
+              <span>Round Off</span>
+              <span>{formatNumber(roundOff)}</span>
+            </div>
+          )}
+          <div className="invoice-total-row net">
+            <span>Net Total</span>
+            <span>{formatNumber(grandTotalRounded)}</span>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div className={`invoice-signature-row ${isGst ? "" : "order-only"}`}>
-      <div className="invoice-amount-words">
-        <span className="invoice-muted-label">Amount Chargeable in Words</span>
-        <div>
-          <strong>Rs. {amountInWords} Only</strong>
+      <div className="invoice-signature-row">
+        <div className="invoice-amount-words">
+          <span className="invoice-muted-label">Amount Chargeable in Words</span>
+          <div>
+            <strong>Rs. {amountInWords} Only</strong>
+          </div>
         </div>
-      </div>
-      {isGst && (
         <div className="invoice-signature">
           <div className="invoice-signature-for">FOR</div>
           <div className="invoice-signature-company">{shop.shopName}</div>
           <img src="/signature.png" alt="Authorized signature" />
           <div>Proprietor / Authorised Signatory</div>
         </div>
-      )}
+      </div>
+    </div>
+  );
+};
+
+const OrderFooter = ({ grandTotalRounded, shop }) => (
+  <div className="order-footer">
+    <div className="order-footer-row">
+      <div className="order-remarks">Remarks :</div>
+
+      <div className="invoice-payment-qr">
+        <img src={ORDER_PAYMENT_QR} alt="Scan QR to pay" />
+        <div>
+          <strong>Scan to Pay</strong>
+          <span>UPI: {shop.paymentUpiId}</span>
+        </div>
+      </div>
+
+      <div className="order-total">
+        <span>Total :</span>
+        <strong>{formatNumber(grandTotalRounded)}</strong>
+      </div>
+    </div>
+
+    <div className="order-bottom-row">
+      <div>
+        Subject to Raipur Jurisdiction
+        <br />
+        E.&amp;O.E.
+      </div>
+      <div className="order-signature">For, {ORDER_LOGO_NAME}</div>
     </div>
   </div>
 );
