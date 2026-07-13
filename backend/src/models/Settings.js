@@ -24,6 +24,54 @@ const settingsSchema = new mongoose.Schema(
       default: "",
     },
 
+    invoiceBusinessLine: {
+      type: String,
+      default: "",
+    },
+
+    invoiceTermOne: {
+      type: String,
+      default: "",
+    },
+
+    invoiceTermTwo: {
+      type: String,
+      default: "",
+    },
+
+    invoiceMarginTop: {
+      type: Number,
+      default: 8,
+      min: 0,
+      max: 20,
+    },
+
+    invoiceMarginRight: {
+      type: Number,
+      default: 8,
+      min: 0,
+      max: 20,
+    },
+
+    invoiceMarginBottom: {
+      type: Number,
+      default: 8,
+      min: 0,
+      max: 20,
+    },
+
+    invoiceMarginLeft: {
+      type: Number,
+      default: 8,
+      min: 0,
+      max: 20,
+    },
+
+    invoiceDesign: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+
 
 
     // ================= GST DETAILS =================

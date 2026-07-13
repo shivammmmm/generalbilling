@@ -6,7 +6,7 @@ import { toNumber } from "../../utils/billing";
 import { numberToWords } from "../../utils/numberToWords";
 
 const PAGE_ITEM_LIMIT = 14;
-const COMPANY_DISPLAY_NAME = "Walia's Creative Design & Prints";
+const COMPANY_DISPLAY_NAME = "Walia's Creative";
 
 const FALLBACK_SHOP = {
   shopName: COMPANY_DISPLAY_NAME,
@@ -27,6 +27,27 @@ const FALLBACK_SHOP = {
 const ORDER_PAYMENT_QR = "/payment-qr-crop.jpeg";
 const ORDER_LOGO_NAME = "Walia's Creative";
 const ORDER_SERVICES = ["Solvent", "Eco-Solvent", "Glow Sign Board", "Signage Solutions"];
+const DESIGN_EDITABLE_SELECTOR = [
+  ".invoice-document-heading",
+  ".invoice-title p",
+  ".invoice-business-line",
+  ".invoice-contact-line",
+  ".invoice-buyer-label",
+  ".invoice-buyer-name",
+  ".invoice-buyer-details div",
+  ".invoice-meta-row strong",
+  ".invoice-table th",
+  ".invoice-table td",
+  ".invoice-section-title",
+  ".invoice-terms li",
+  ".invoice-footer-cell:nth-child(2) > div",
+  ".invoice-total-row span",
+  ".invoice-amount-words span",
+  ".invoice-amount-words strong",
+  ".invoice-signature-for",
+  ".invoice-signature-company",
+  ".invoice-signature > div:last-child",
+].join(",");
 
 const A4_PRINT_STYLE = `
 .invoice-shell {
@@ -50,7 +71,7 @@ const A4_PRINT_STYLE = `
 .invoice-page {
   width: 210mm;
   height: 297mm;
-  padding: 8mm;
+  padding: var(--invoice-margin-top, 8mm) var(--invoice-margin-right, 8mm) var(--invoice-margin-bottom, 8mm) var(--invoice-margin-left, 8mm);
   box-sizing: border-box;
   background: #ffffff;
   color: #111827;
@@ -67,7 +88,9 @@ const A4_PRINT_STYLE = `
 }
 
 .invoice-sheet {
-  height: 281mm;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
   border: 1.4px solid #111827;
   display: flex;
   flex-direction: column;
@@ -90,7 +113,7 @@ const A4_PRINT_STYLE = `
   width: 210mm;
   height: 297mm;
   margin: 0;
-  padding: 8mm;
+  padding: var(--invoice-margin-top, 8mm) var(--invoice-margin-right, 8mm) var(--invoice-margin-bottom, 8mm) var(--invoice-margin-left, 8mm);
   box-shadow: none;
   overflow: hidden;
   page-break-after: always;
@@ -122,31 +145,47 @@ const A4_PRINT_STYLE = `
 }
 
 .invoice-title {
+  display: grid;
+  grid-template-columns: 46mm minmax(0, 1fr) 18mm;
+  align-items: center;
+  min-height: 28mm;
+  padding: 3px 10px 5px;
   text-align: center;
-  padding: 5px 14px 9px;
+}
+
+.invoice-brand-mark {
+  width: 34mm;
+  height: 20mm;
+  margin: 0 auto;
+  display: block;
+  object-fit: contain;
+}
+
+.invoice-title-copy {
+  min-width: 0;
 }
 
 .invoice-title h1 {
-  margin: 0 0 10px;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 39px;
-  line-height: 1.08;
-  letter-spacing: 0;
+  margin: 0 0 1px;
+  font-family: Arial, sans-serif;
+  font-size: 38px;
+  line-height: 1;
+  letter-spacing: -1.5px;
   text-transform: none;
 }
 
 .invoice-title p {
   margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.4;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.25;
 }
 
 .invoice-business-line {
   border-top: 1.2px solid #111827;
   border-bottom: 1.2px solid #111827;
-  background: #f3f6fb;
-  padding: 6px 12px;
+  background: #ffffff;
+  padding: 5px 12px;
   text-align: center;
   font-size: 12px;
   font-weight: 800;
@@ -175,21 +214,24 @@ const A4_PRINT_STYLE = `
 
 .invoice-buyer-box,
 .invoice-meta-box {
-  min-height: 28mm;
+  min-height: 30mm;
   padding: 8px 10px;
 }
 
 .invoice-buyer-box {
   border-right: 1.2px solid #111827;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: start;
+  column-gap: 8px;
 }
 
 .invoice-buyer-name {
-  margin: 2px 0 0;
-  text-align: center;
-  font-size: 15px;
+  margin: 0;
+  text-align: left;
+  font-size: 22px;
   font-weight: 900;
-  line-height: 1.25;
-  text-transform: uppercase;
+  line-height: 1.15;
 }
 
 .invoice-muted-label {
@@ -201,18 +243,24 @@ const A4_PRINT_STYLE = `
 }
 
 .invoice-buyer-label {
-  display: block;
-  text-align: center;
-  font-size: 15px;
-  font-weight: 900;
+  display: inline-block;
+  padding-top: 2px;
+  text-align: left;
+  font-size: 17px;
+  font-weight: 500;
+  text-transform: none;
 }
 
 .invoice-buyer-details {
-  margin-top: 5px;
-  line-height: 1.55;
+  margin-top: 4px;
+  line-height: 1.4;
   font-size: 13px;
   font-weight: 700;
-  text-align: center;
+  text-align: left;
+}
+
+.invoice-buyer-content {
+  min-width: 0;
 }
 
 .invoice-meta-row {
@@ -258,7 +306,7 @@ const A4_PRINT_STYLE = `
 }
 
 .invoice-table th {
-  background: #f8fafc;
+  background: #ffffff;
   border-right: 1px solid #111827;
   border-bottom: 1.2px solid #111827;
   padding: 6px 5px;
@@ -311,7 +359,7 @@ const A4_PRINT_STYLE = `
 }
 
 .invoice-table tfoot td {
-  background: #f8fafc;
+  background: #ffffff;
   border-top: 1.2px solid #111827;
   border-bottom: 1.2px solid #111827;
   font-weight: 900;
@@ -342,7 +390,7 @@ const A4_PRINT_STYLE = `
 }
 
 .invoice-footer-cell {
-  min-height: 34mm;
+  min-height: 38mm;
   border-right: 1.2px solid #111827;
   padding: 8px;
   font-size: 12px;
@@ -441,16 +489,21 @@ const A4_PRINT_STYLE = `
   align-items: end;
   gap: 14px;
   padding: 10px 14px 8px;
-  min-height: 26mm;
+  min-height: 35mm;
 }
 
 .invoice-amount-words {
+  align-self: end;
   font-size: 13px;
   font-weight: 700;
   line-height: 1.5;
 }
 
 .invoice-signature {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   text-align: center;
   font-size: 12.5px;
   font-weight: 800;
@@ -610,6 +663,34 @@ const A4_PRINT_STYLE = `
   font-weight: 900;
 }
 
+.invoice-document.design-mode [data-design-editable="true"] {
+  cursor: text;
+  outline: 1px dashed rgba(37, 99, 235, 0.35);
+  outline-offset: -1px;
+}
+
+.invoice-document.design-mode [data-design-editable="true"]:hover {
+  outline: 2px solid #60a5fa;
+  position: relative;
+  z-index: 4;
+}
+
+.invoice-document.design-mode .design-selected {
+  outline: 2px solid #2563eb !important;
+  position: relative;
+  z-index: 5;
+}
+
+.invoice-document.design-mode .invoice-brand-mark {
+  cursor: move;
+  outline: 2px dashed #f97316;
+}
+
+.invoice-document.design-mode [data-design-locked="true"] {
+  cursor: not-allowed;
+  outline: 2px solid #ef4444;
+}
+
 @media print {
   @page {
     size: A4 portrait;
@@ -633,6 +714,13 @@ const A4_PRINT_STYLE = `
     display: none !important;
   }
 
+  [data-design-editable="true"],
+  .design-selected,
+  .invoice-brand-mark,
+  [data-design-locked="true"] {
+    outline: none !important;
+  }
+
   .invoice-shell {
     background: #ffffff !important;
     padding: 0 !important;
@@ -654,7 +742,7 @@ const A4_PRINT_STYLE = `
     width: 210mm !important;
     height: 297mm !important;
     margin: 0 !important;
-    padding: 8mm !important;
+    padding: var(--invoice-margin-top, 8mm) var(--invoice-margin-right, 8mm) var(--invoice-margin-bottom, 8mm) var(--invoice-margin-left, 8mm) !important;
     box-shadow: none !important;
   }
 
@@ -680,6 +768,12 @@ const normalizeWhatsAppPhone = (value = "") => {
   return digits;
 };
 
+const normalizeInvoiceMargin = (value) => {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return 8;
+  return Math.min(20, Math.max(0, numericValue));
+};
+
 const downloadBlob = (blob, filename) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -700,6 +794,9 @@ const PrintInvoice = () => {
   const [error, setError] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
   const [whatsAppBusy, setWhatsAppBusy] = useState(false);
+  const [designMode, setDesignMode] = useState(false);
+  const [selectedDesignLabel, setSelectedDesignLabel] = useState("Nothing selected");
+  const selectedDesignElement = useRef(null);
 
   useEffect(() => {
     const styleTag = document.createElement("style");
@@ -727,6 +824,27 @@ const PrintInvoice = () => {
     getInvoice();
   }, [id]);
 
+  useEffect(() => {
+    if (!invoice) return;
+    const frame = requestAnimationFrame(() => {
+      const root = printRef.current;
+      if (!root) return;
+      const savedDesign = settings.invoiceDesign?.invoices?.[id] || {};
+      const elements = [...root.querySelectorAll(DESIGN_EDITABLE_SELECTOR)];
+      elements.forEach((element, index) => {
+        element.dataset.designId = `text-${index}`;
+        const saved = savedDesign.elements?.[`text-${index}`];
+        if (saved?.text !== undefined) element.textContent = saved.text;
+        if (saved?.style) element.style.cssText = saved.style;
+      });
+      const logo = root.querySelector(".invoice-brand-mark");
+      if (logo && savedDesign.logoStyle) {
+        logo.style.cssText = savedDesign.logoStyle;
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [id, invoice, settings.invoiceDesign]);
+
   const isGst = invoice?.documentType !== "order" && invoice?.gstEnabled !== false;
   const docLabel = isGst ? "Invoice" : "Order";
   const docHeading = isGst ? "Tax Invoice" : "Estimate / Order";
@@ -734,7 +852,7 @@ const PrintInvoice = () => {
   const shop = useMemo(
     () => ({
       shopName: COMPANY_DISPLAY_NAME,
-      businessLine: FALLBACK_SHOP.businessLine,
+      businessLine: settings.invoiceBusinessLine || FALLBACK_SHOP.businessLine,
       shopAddress: settings.shopAddress || FALLBACK_SHOP.shopAddress,
       shopMobile: settings.shopMobile || FALLBACK_SHOP.shopMobile,
       shopEmail: settings.shopEmail || FALLBACK_SHOP.shopEmail,
@@ -751,6 +869,16 @@ const PrintInvoice = () => {
   );
 
   const pages = useMemo(() => chunkItems(invoice?.products || []), [invoice]);
+
+  const invoicePageStyle = useMemo(
+    () => ({
+      "--invoice-margin-top": `${normalizeInvoiceMargin(settings.invoiceMarginTop)}mm`,
+      "--invoice-margin-right": `${normalizeInvoiceMargin(settings.invoiceMarginRight)}mm`,
+      "--invoice-margin-bottom": `${normalizeInvoiceMargin(settings.invoiceMarginBottom)}mm`,
+      "--invoice-margin-left": `${normalizeInvoiceMargin(settings.invoiceMarginLeft)}mm`,
+    }),
+    [settings]
+  );
 
   const taxBreakup = useMemo(() => {
     if (!invoice?.products?.length) return [];
@@ -775,8 +903,8 @@ const PrintInvoice = () => {
   }, [invoice]);
 
   const termsList = [
-    "All disputes are subject to Raipur Jurisdiction only.",
-    "E.&O.E. GST rules apply as current regulations.",
+    settings.invoiceTermOne || "All disputes are subject to Raipur Jurisdiction only.",
+    settings.invoiceTermTwo || "E.&O.E. GST rules apply as current regulations.",
   ];
 
   const grandTotal = toNumber(invoice?.grandTotal);
@@ -789,12 +917,7 @@ const PrintInvoice = () => {
 
   const getPdfOptions = (filename, element) => {
     const firstPage = element.querySelector(".invoice-page");
-    const pageWidth = Math.ceil(
-      firstPage?.getBoundingClientRect().width || element.getBoundingClientRect().width
-    );
-    const documentHeight = Math.ceil(
-      element.scrollHeight || element.getBoundingClientRect().height
-    );
+    const pageWidth = Math.round(firstPage?.getBoundingClientRect().width || 794);
 
     return {
       margin: 0,
@@ -808,9 +931,6 @@ const PrintInvoice = () => {
         scrollX: 0,
         scrollY: 0,
         windowWidth: pageWidth,
-        windowHeight: documentHeight,
-        width: pageWidth,
-        height: documentHeight,
       },
       jsPDF: { unit: "mm", format: [210, 297], orientation: "portrait" },
       pagebreak: { mode: ["css", "legacy"] },
@@ -858,6 +978,102 @@ const PrintInvoice = () => {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const setDesignEditing = (enabled) => {
+    const root = printRef.current;
+    if (!root) return;
+    const elements = [...root.querySelectorAll(DESIGN_EDITABLE_SELECTOR)];
+    elements.forEach((element, index) => {
+      element.dataset.designId = `text-${index}`;
+      element.dataset.designEditable = "true";
+      element.contentEditable = enabled ? "true" : "false";
+      element.spellcheck = enabled;
+    });
+    root.classList.toggle("design-mode", enabled);
+    if (!enabled) {
+      selectedDesignElement.current?.classList.remove("design-selected");
+      selectedDesignElement.current = null;
+      setSelectedDesignLabel("Nothing selected");
+    }
+    setDesignMode(enabled);
+  };
+
+  const handleDesignSelect = (event) => {
+    if (!designMode) return;
+    const target = event.target.closest('[data-design-editable="true"], .invoice-brand-mark');
+    if (!target || !printRef.current?.contains(target)) return;
+    selectedDesignElement.current?.classList.remove("design-selected");
+    selectedDesignElement.current = target;
+    target.classList.add("design-selected");
+    setSelectedDesignLabel(
+      target.classList.contains("invoice-brand-mark")
+        ? "Logo selected"
+        : `${target.textContent.trim().slice(0, 38) || "Text block"} selected`
+    );
+  };
+
+  const applySelectedStyle = (property, value) => {
+    const element = selectedDesignElement.current;
+    if (!element) return;
+    element.style[property] = value;
+  };
+
+  const updateDesignMargin = (side, value) => {
+    const normalized = normalizeInvoiceMargin(value);
+    const settingName = `invoiceMargin${side[0].toUpperCase()}${side.slice(1)}`;
+    setSettings((current) => ({ ...current, [settingName]: normalized }));
+  };
+
+  const moveSelected = (xDelta, yDelta) => {
+    const element = selectedDesignElement.current;
+    if (!element) return;
+    const x = Number(element.dataset.moveX || 0) + xDelta;
+    const y = Number(element.dataset.moveY || 0) + yDelta;
+    element.dataset.moveX = String(x);
+    element.dataset.moveY = String(y);
+    element.style.transform = `translate(${x}px, ${y}px)`;
+  };
+
+  const resizeSelected = (delta) => {
+    const element = selectedDesignElement.current;
+    if (!element) return;
+    if (element.classList.contains("invoice-brand-mark")) {
+      const width = Math.max(30, element.getBoundingClientRect().width + delta);
+      element.style.width = `${width}px`;
+      element.style.height = "auto";
+      return;
+    }
+    const currentSize = Number.parseFloat(getComputedStyle(element).fontSize) || 12;
+    element.style.fontSize = `${Math.max(7, currentSize + delta)}px`;
+  };
+
+  const saveInvoiceDesign = async () => {
+    const root = printRef.current;
+    if (!root) return;
+    const elements = {};
+    root.querySelectorAll("[data-design-id]").forEach((element) => {
+      elements[element.dataset.designId] = {
+        text: element.textContent,
+        style: element.style.cssText,
+      };
+    });
+    const logo = root.querySelector(".invoice-brand-mark");
+    const invoiceDesign = {
+      ...(settings.invoiceDesign || {}),
+      invoices: {
+        ...(settings.invoiceDesign?.invoices || {}),
+        [id]: { elements, logoStyle: logo?.style.cssText || "" },
+      },
+    };
+    try {
+      await API.put("/settings", { ...settings, shopName: COMPANY_DISPLAY_NAME, invoiceDesign });
+      setSettings((current) => ({ ...current, invoiceDesign }));
+      setDesignEditing(false);
+      alert("Invoice design saved.");
+    } catch (error) {
+      alert(error.response?.data?.message || "Design save nahi ho paya.");
+    }
   };
 
   const handleDownloadFile = async () => {
@@ -945,6 +1161,13 @@ const PrintInvoice = () => {
 
         <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
           <button
+            type="button"
+            onClick={() => setDesignEditing(!designMode)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-violet-700"
+          >
+            {designMode ? "Close Designer" : "Edit Design"}
+          </button>
+          <button
             onClick={handleWhatsApp}
             disabled={whatsAppBusy}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-70"
@@ -980,14 +1203,109 @@ const PrintInvoice = () => {
         </div>
       </div>
 
+      {designMode && (
+        <div className="print:hidden sticky top-2 z-50 mx-auto flex max-w-5xl flex-wrap items-end gap-2 rounded-2xl border border-violet-200 bg-white p-3 shadow-xl">
+          <div className="mr-2 min-w-48">
+            <div className="text-[10px] font-black uppercase tracking-widest text-violet-600">
+              Word-style editor
+            </div>
+            <div className="max-w-56 truncate text-xs font-bold text-slate-700">
+              {selectedDesignLabel}
+            </div>
+          </div>
+
+          <label className="text-[10px] font-black uppercase text-slate-500">
+            Font
+            <select
+              className="mt-1 block rounded-lg border border-slate-300 px-2 py-2 text-xs normal-case text-slate-800"
+              onChange={(event) => applySelectedStyle("fontFamily", event.target.value)}
+              defaultValue="Arial"
+            >
+              <option>Arial</option>
+              <option>Georgia</option>
+              <option>Tahoma</option>
+              <option>Verdana</option>
+              <option>Times New Roman</option>
+              <option>Courier New</option>
+            </select>
+          </label>
+
+          <div className="flex gap-1">
+            <button type="button" onClick={() => resizeSelected(-1)} className="rounded-lg bg-slate-100 px-3 py-2 font-black">A−</button>
+            <button type="button" onClick={() => resizeSelected(1)} className="rounded-lg bg-slate-100 px-3 py-2 font-black">A+</button>
+            <button type="button" onClick={() => applySelectedStyle("fontWeight", "900")} className="rounded-lg bg-slate-100 px-3 py-2 font-black">B</button>
+            <button type="button" onClick={() => applySelectedStyle("fontWeight", "400")} className="rounded-lg bg-slate-100 px-3 py-2">Normal</button>
+            <input
+              type="color"
+              title="Text colour"
+              defaultValue="#111827"
+              onChange={(event) => applySelectedStyle("color", event.target.value)}
+              className="h-9 w-10 cursor-pointer rounded-lg border border-slate-200 bg-white p-1"
+            />
+          </div>
+
+          <div className="flex gap-1">
+            <button type="button" onClick={() => applySelectedStyle("textAlign", "left")} className="rounded-lg bg-slate-100 px-3 py-2">Left</button>
+            <button type="button" onClick={() => applySelectedStyle("textAlign", "center")} className="rounded-lg bg-slate-100 px-3 py-2">Center</button>
+            <button type="button" onClick={() => applySelectedStyle("textAlign", "right")} className="rounded-lg bg-slate-100 px-3 py-2">Right</button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-1">
+            <span />
+            <button type="button" onClick={() => moveSelected(0, -2)} className="rounded bg-slate-100 px-2 py-1">↑</button>
+            <span />
+            <button type="button" onClick={() => moveSelected(-2, 0)} className="rounded bg-slate-100 px-2 py-1">←</button>
+            <button type="button" onClick={() => moveSelected(0, 2)} className="rounded bg-slate-100 px-2 py-1">↓</button>
+            <button type="button" onClick={() => moveSelected(2, 0)} className="rounded bg-slate-100 px-2 py-1">→</button>
+          </div>
+
+          <div className="flex gap-1">
+            {["top", "right", "bottom", "left"].map((side) => {
+              const key = `invoiceMargin${side[0].toUpperCase()}${side.slice(1)}`;
+              return (
+                <label key={side} className="text-[9px] font-black uppercase text-slate-500">
+                  {side[0]}
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    step="0.5"
+                    value={settings[key] ?? 8}
+                    onChange={(event) => updateDesignMargin(side, event.target.value)}
+                    className="mt-1 block w-12 rounded border border-slate-300 px-1 py-2 text-center text-xs text-slate-800"
+                  />
+                </label>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={saveInvoiceDesign}
+            className="ml-auto rounded-xl bg-violet-600 px-5 py-3 text-sm font-black text-white hover:bg-violet-700"
+          >
+            Save Design
+          </button>
+        </div>
+      )}
+
       <div className="invoice-scroll">
-        <div id="invoice-a4-wrapper" ref={printRef} className="invoice-document">
+        <div
+          id="invoice-a4-wrapper"
+          ref={printRef}
+          className="invoice-document"
+          onClickCapture={handleDesignSelect}
+        >
           {pages.map((pageItems, pageIndex) => {
             const isLastPage = pageIndex === pages.length - 1;
             const serialOffset = pageIndex * PAGE_ITEM_LIMIT;
 
             return (
-              <div className="invoice-page" key={`invoice-page-${pageIndex}`}>
+              <div
+                className="invoice-page"
+                key={`invoice-page-${pageIndex}`}
+                style={invoicePageStyle}
+              >
                 <div className="invoice-sheet">
                   <InvoiceHeader
                     docHeading={docHeading}
@@ -1061,8 +1379,18 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
       </div>
 
       <div className="invoice-title">
-        <h1>{shop.shopName}</h1>
-        <p>{shop.shopAddress}</p>
+        <img
+          className="invoice-brand-mark"
+          src="/walia-logo.png"
+          alt="Walia's Creative logo"
+        />
+        <div className="invoice-title-copy">
+          <h1 data-design-locked="true" title="Company name is locked">
+            {shop.shopName}
+          </h1>
+          <p>{shop.shopAddress}</p>
+        </div>
+        <span aria-hidden="true" />
       </div>
 
       <div className="invoice-business-line">{shop.businessLine}</div>
@@ -1075,12 +1403,14 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
 
       <div className="invoice-party-grid">
         <div className="invoice-buyer-box">
-          <span className="invoice-muted-label invoice-buyer-label">Bill To</span>
-          <p className="invoice-buyer-name">{invoice?.farmer?.name || "-"}</p>
-          <div className="invoice-buyer-details">
-            <div>{customerAddress || "-"}</div>
-            <div>Mobile: {invoice?.farmer?.mobileNumber || "-"}</div>
-            <div>GSTIN: {invoice?.farmer?.gstNumber || "-"}</div>
+          <span className="invoice-muted-label invoice-buyer-label">Bill To:</span>
+          <div className="invoice-buyer-content">
+            <p className="invoice-buyer-name">{invoice?.farmer?.name || "-"}</p>
+            <div className="invoice-buyer-details">
+              <div>{customerAddress || "-"}</div>
+              <div>Mob.: {invoice?.farmer?.mobileNumber || "-"}</div>
+              <div>GST: {invoice?.farmer?.gstNumber || "-"}</div>
+            </div>
           </div>
         </div>
 
@@ -1331,7 +1661,9 @@ const InvoiceFooter = ({
         </div>
         <div className="invoice-signature">
           <div className="invoice-signature-for">FOR</div>
-          <div className="invoice-signature-company">{shop.shopName}</div>
+          <div className="invoice-signature-company">
+            {shop.accountHolderName || shop.shopName}
+          </div>
           <img src="/signature.png" alt="Authorized signature" />
           <div>Proprietor / Authorised Signatory</div>
         </div>

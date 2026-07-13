@@ -4,7 +4,7 @@ import API from "../../services/api";
 
 const Settings = () => {
   const [settings, setSettings] = useState({
-    shopName: "",
+    shopName: "Walia's Creative",
     shopAddress: "",
     shopMobile: "",
     shopEmail: "",
@@ -16,6 +16,13 @@ const Settings = () => {
     accountNumber: "",
     ifscCode: "",
     upiId: "",
+    invoiceBusinessLine: "",
+    invoiceTermOne: "",
+    invoiceTermTwo: "",
+    invoiceMarginTop: 8,
+    invoiceMarginRight: 8,
+    invoiceMarginBottom: 8,
+    invoiceMarginLeft: 8,
     reminderDaysBeforeDue: "",
     overdueReminderEnabled: true,
     lowStockAlertEnabled: true,
@@ -108,10 +115,13 @@ const Settings = () => {
               <input
                 type="text"
                 name="shopName"
-                value={settings.shopName || ""}
-                onChange={handleChange}
-                className={inputClass}
+                value="Walia's Creative"
+                disabled
+                className={`${inputClass} cursor-not-allowed bg-slate-100 text-slate-500`}
               />
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                Company name is fixed on the invoice.
+              </p>
             </div>
             <div>
               <label className={labelClass}>Business Phone</label>
@@ -142,6 +152,85 @@ const Settings = () => {
                 onChange={handleChange}
                 className={inputClass}
               />
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="mb-1 text-xl font-black text-slate-950">
+            Invoice Design &amp; Content
+          </h2>
+          <p className="mb-5 text-sm font-medium text-slate-500">
+            These values control the GST invoice on screen, PDF, and print.
+          </p>
+
+          <div className="grid grid-cols-1 gap-5">
+            <div>
+              <label className={labelClass}>Services / Business Line</label>
+              <input
+                type="text"
+                name="invoiceBusinessLine"
+                value={settings.invoiceBusinessLine || ""}
+                onChange={handleChange}
+                className={inputClass}
+                placeholder="Eco Solvent Print, Flex Banners, Hoardings..."
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <div>
+                <label className={labelClass}>Terms Line 1</label>
+                <input
+                  type="text"
+                  name="invoiceTermOne"
+                  value={settings.invoiceTermOne || ""}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="All disputes are subject to Raipur Jurisdiction only."
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Terms Line 2</label>
+                <input
+                  type="text"
+                  name="invoiceTermTwo"
+                  value={settings.invoiceTermTwo || ""}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="E.&O.E. GST rules apply as current regulations."
+                />
+              </div>
+            </div>
+
+            <div>
+              <h3 className="mb-4 text-sm font-black uppercase tracking-widest text-slate-700">
+                A4 Margins (millimetres)
+              </h3>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                {[
+                  ["invoiceMarginTop", "Top"],
+                  ["invoiceMarginRight", "Right"],
+                  ["invoiceMarginBottom", "Bottom"],
+                  ["invoiceMarginLeft", "Left"],
+                ].map(([name, label]) => (
+                  <div key={name}>
+                    <label className={labelClass}>{label}</label>
+                    <input
+                      type="number"
+                      name={name}
+                      min="0"
+                      max="20"
+                      step="0.5"
+                      value={settings[name] ?? 8}
+                      onChange={handleChange}
+                      className={inputClass}
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-xs font-semibold text-slate-500">
+                Allowed range: 0–20 mm. Default: 8 mm on every side.
+              </p>
             </div>
           </div>
         </section>
