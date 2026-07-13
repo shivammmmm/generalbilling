@@ -99,13 +99,16 @@ export const addFarmer = async (req, res) => {
 
     // create farmer
 
+    const trimmedAadhaar =
+      typeof aadhaarNumber === "string" ? aadhaarNumber.trim() : aadhaarNumber;
+
     const farmer = await Farmer.create({
       name,
       mobileNumber,
       village,
       city,
       address,
-      aadhaarNumber,
+      aadhaarNumber: trimmedAadhaar || undefined,
       gstNumber,
       openingBalance: Number(openingBalance) || 0,
       creditLimit,
@@ -185,9 +188,23 @@ export const updateFarmer = async (req, res) => {
       });
     }
 
+    const { aadhaarNumber, ...restBody } = req.body;
+    const updatePayload = { $set: restBody };
+
+    if (Object.prototype.hasOwnProperty.call(req.body, "aadhaarNumber")) {
+      const trimmedAadhaar =
+        typeof aadhaarNumber === "string" ? aadhaarNumber.trim() : aadhaarNumber;
+
+      if (trimmedAadhaar) {
+        updatePayload.$set.aadhaarNumber = trimmedAadhaar;
+      } else {
+        updatePayload.$unset = { aadhaarNumber: "" };
+      }
+    }
+
     const updatedFarmer = await Farmer.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updatePayload,
       {
         returnDocument: "after",
       }
