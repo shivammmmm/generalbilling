@@ -27,6 +27,9 @@ const FALLBACK_SHOP = {
 const ORDER_PAYMENT_QR = "/payment-qr-crop.jpeg";
 const ORDER_LOGO_NAME = "Walia's Creative";
 const ORDER_SERVICES = ["Solvent", "Eco-Solvent", "Glow Sign Board", "Signage Solutions"];
+const GST_COLUMN_WIDTHS = [6, 26, 10, 8, 12, 10, 8, 10, 10];
+const ORDER_COLUMN_WIDTHS = [6, 40, 16, 12, 13, 13];
+const MIN_COLUMN_WIDTH = 4;
 const DESIGN_EDITABLE_SELECTOR = [
   ".invoice-document-heading",
   ".invoice-title p",
@@ -151,6 +154,18 @@ const A4_PRINT_STYLE = `
   min-height: 28mm;
   padding: 3px 10px 5px;
   text-align: center;
+}
+
+.invoice-document.capture-render [data-design-editable="true"],
+.invoice-document.capture-render .design-selected,
+.invoice-document.capture-render .invoice-brand-mark,
+.invoice-document.capture-render [data-design-locked="true"],
+.invoice-document.capture-render [data-design-movable="true"] {
+  outline: none !important;
+}
+
+.invoice-document.capture-render .invoice-column-resizer {
+  display: none !important;
 }
 
 .invoice-brand-mark {
@@ -315,6 +330,31 @@ const A4_PRINT_STYLE = `
   font-weight: 900;
   line-height: 1.2;
   text-transform: uppercase;
+  position: relative;
+}
+
+.invoice-column-resizer {
+  position: absolute;
+  z-index: 8;
+  top: 0;
+  right: -5px;
+  width: 10px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.invoice-column-resizer::after {
+  content: "";
+  position: absolute;
+  top: 15%;
+  bottom: 15%;
+  left: 4px;
+  width: 2px;
+  border-radius: 2px;
+  background: #2563eb;
+  opacity: 0.65;
 }
 
 .invoice-table th:last-child,
@@ -363,6 +403,7 @@ const A4_PRINT_STYLE = `
   border-top: 1.2px solid #111827;
   border-bottom: 1.2px solid #111827;
   font-weight: 900;
+  text-align: center;
 }
 
 .invoice-filler-row td {
@@ -661,6 +702,7 @@ const A4_PRINT_STYLE = `
 .order-signature {
   font-size: 13.5px;
   font-weight: 900;
+  text-align: center;
 }
 
 .invoice-document.design-mode [data-design-editable="true"] {
@@ -684,6 +726,12 @@ const A4_PRINT_STYLE = `
 .invoice-document.design-mode .invoice-brand-mark {
   cursor: move;
   outline: 2px dashed #f97316;
+}
+
+.invoice-document.design-mode [data-design-movable="true"] {
+  cursor: move;
+  outline: 2px dashed #f97316;
+  outline-offset: 2px;
 }
 
 .invoice-document.design-mode [data-design-locked="true"] {
@@ -719,6 +767,10 @@ const A4_PRINT_STYLE = `
   .invoice-brand-mark,
   [data-design-locked="true"] {
     outline: none !important;
+  }
+
+  .invoice-column-resizer {
+    display: none !important;
   }
 
   .invoice-shell {
@@ -796,6 +848,7 @@ const PrintInvoice = () => {
   const [whatsAppBusy, setWhatsAppBusy] = useState(false);
   const [designMode, setDesignMode] = useState(false);
   const [selectedDesignLabel, setSelectedDesignLabel] = useState("Nothing selected");
+  const [tableColumnWidths, setTableColumnWidths] = useState(GST_COLUMN_WIDTHS);
   const selectedDesignElement = useRef(null);
 
   useEffect(() => {
@@ -830,6 +883,16 @@ const PrintInvoice = () => {
       const root = printRef.current;
       if (!root) return;
       const savedDesign = settings.invoiceDesign?.invoices?.[id] || {};
+      const orderDocument = invoice?.documentType === "order" || invoice?.gstEnabled === false;
+      const expectedColumnCount = orderDocument
+        ? ORDER_COLUMN_WIDTHS.length
+        : GST_COLUMN_WIDTHS.length;
+      const savedColumnWidths = savedDesign.tableColumnWidths;
+      setTableColumnWidths(
+        Array.isArray(savedColumnWidths) && savedColumnWidths.length === expectedColumnCount
+          ? savedColumnWidths
+          : orderDocument ? ORDER_COLUMN_WIDTHS : GST_COLUMN_WIDTHS
+      );
       const elements = [...root.querySelectorAll(DESIGN_EDITABLE_SELECTOR)];
       elements.forEach((element, index) => {
         element.dataset.designId = `text-${index}`;
@@ -841,6 +904,19 @@ const PrintInvoice = () => {
       if (logo && savedDesign.logoStyle) {
         logo.style.cssText = savedDesign.logoStyle;
       }
+      root.querySelectorAll('[data-design-special-id]').forEach((element) => {
+        const savedStyle = savedDesign.specialStyles?.[element.dataset.designSpecialId];
+        if (savedStyle) {
+          element.style.cssText = savedStyle;
+          const translated = element.style.transform.match(
+            /translate\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)px\s*\)/
+          );
+          if (translated) {
+            element.dataset.moveX = translated[1];
+            element.dataset.moveY = translated[2];
+          }
+        }
+      });
     });
     return () => cancelAnimationFrame(frame);
   }, [id, invoice, settings.invoiceDesign]);
@@ -915,46 +991,59 @@ const PrintInvoice = () => {
   const getExportFilename = (extension) =>
     `${isGst ? "GST-Invoice" : "Order"}-${invoice?.invoiceNumber || "bill"}.${extension}`;
 
-  const getPdfOptions = (filename, element) => {
-    const firstPage = element.querySelector(".invoice-page");
-    const pageWidth = Math.round(firstPage?.getBoundingClientRect().width || 794);
-
-    return {
-      margin: 0,
-      filename,
-      image: { type: "jpeg", quality: 1 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: pageWidth,
-      },
-      jsPDF: { unit: "mm", format: [210, 297], orientation: "portrait" },
-      pagebreak: { mode: ["css", "legacy"] },
-    };
-  };
-
   const withCaptureRender = async (element, action) => {
-    element.classList.add("pdf-render");
+    if (document.fonts?.ready) await document.fonts.ready;
+    const images = [...element.querySelectorAll("img")];
+    await Promise.all(images.map((image) => {
+      if (image.complete) return image.decode?.().catch(() => undefined);
+      return new Promise((resolve) => {
+        image.addEventListener("load", resolve, { once: true });
+        image.addEventListener("error", resolve, { once: true });
+      });
+    }));
+    element.classList.add("capture-render");
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     try {
       return await action();
     } finally {
-      element.classList.remove("pdf-render");
+      element.classList.remove("capture-render");
     }
   };
 
-  const createPdfBlob = async (filename) => {
+  const createPdfBlob = async () => {
     const element = document.getElementById("invoice-a4-wrapper");
     if (!element) return null;
 
-    const html2pdf = (await import("html2pdf.js")).default;
-    return withCaptureRender(element, () =>
-      html2pdf().set(getPdfOptions(filename, element)).from(element).output("blob")
-    );
+    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+      import("html2canvas"),
+      import("jspdf"),
+    ]);
+    return withCaptureRender(element, async () => {
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+      const pageElements = [...element.querySelectorAll(".invoice-page")];
+
+      for (let index = 0; index < pageElements.length; index += 1) {
+        const page = pageElements[index];
+        const pageRect = page.getBoundingClientRect();
+        const canvas = await html2canvas(page, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+          scrollX: 0,
+          scrollY: -window.scrollY,
+          width: Math.round(pageRect.width),
+          height: Math.round(pageRect.height),
+          windowWidth: document.documentElement.clientWidth,
+          windowHeight: document.documentElement.clientHeight,
+        });
+        if (index > 0) pdf.addPage("a4", "portrait");
+        pdf.addImage(canvas.toDataURL("image/jpeg", 1), "JPEG", 0, 0, 210, 297);
+      }
+
+      return pdf.output("blob");
+    });
   };
 
   const createImageBlob = async (mimeType = "image/jpeg") => {
@@ -990,6 +1079,9 @@ const PrintInvoice = () => {
       element.contentEditable = enabled ? "true" : "false";
       element.spellcheck = enabled;
     });
+    root.querySelectorAll('[data-design-movable="true"]').forEach((element) => {
+      element.contentEditable = "false";
+    });
     root.classList.toggle("design-mode", enabled);
     if (!enabled) {
       selectedDesignElement.current?.classList.remove("design-selected");
@@ -1001,7 +1093,9 @@ const PrintInvoice = () => {
 
   const handleDesignSelect = (event) => {
     if (!designMode) return;
-    const target = event.target.closest('[data-design-editable="true"], .invoice-brand-mark');
+    const target = event.target.closest(
+      '[data-design-editable="true"], .invoice-brand-mark, [data-design-movable="true"]'
+    );
     if (!target || !printRef.current?.contains(target)) return;
     selectedDesignElement.current?.classList.remove("design-selected");
     selectedDesignElement.current = target;
@@ -1009,6 +1103,10 @@ const PrintInvoice = () => {
     setSelectedDesignLabel(
       target.classList.contains("invoice-brand-mark")
         ? "Logo selected"
+        : target.dataset.designSpecialId === "signature"
+          ? "Signature selected (size and position only)"
+          : target.dataset.designSpecialId === "company-name"
+            ? "Company name selected (position only)"
         : `${target.textContent.trim().slice(0, 38) || "Text block"} selected`
     );
   };
@@ -1030,22 +1128,69 @@ const PrintInvoice = () => {
     if (!element) return;
     const x = Number(element.dataset.moveX || 0) + xDelta;
     const y = Number(element.dataset.moveY || 0) + yDelta;
-    element.dataset.moveX = String(x);
-    element.dataset.moveY = String(y);
-    element.style.transform = `translate(${x}px, ${y}px)`;
+    const matchingElements = element.dataset.designSpecialId
+      ? printRef.current.querySelectorAll(
+          `[data-design-special-id="${element.dataset.designSpecialId}"]`
+        )
+      : [element];
+    matchingElements.forEach((matchingElement) => {
+      matchingElement.dataset.moveX = String(x);
+      matchingElement.dataset.moveY = String(y);
+      matchingElement.style.transform = `translate(${x}px, ${y}px)`;
+    });
   };
 
   const resizeSelected = (delta) => {
     const element = selectedDesignElement.current;
     if (!element) return;
-    if (element.classList.contains("invoice-brand-mark")) {
+    if (
+      element.classList.contains("invoice-brand-mark") ||
+      element.dataset.designSpecialId === "signature"
+    ) {
       const width = Math.max(30, element.getBoundingClientRect().width + delta);
-      element.style.width = `${width}px`;
-      element.style.height = "auto";
+      const matchingElements = element.dataset.designSpecialId
+        ? printRef.current.querySelectorAll(
+            `[data-design-special-id="${element.dataset.designSpecialId}"]`
+          )
+        : [element];
+      matchingElements.forEach((matchingElement) => {
+        matchingElement.style.width = `${width}px`;
+        matchingElement.style.height = "auto";
+      });
       return;
     }
+    if (element.dataset.designSpecialId === "company-name") return;
     const currentSize = Number.parseFloat(getComputedStyle(element).fontSize) || 12;
     element.style.fontSize = `${Math.max(7, currentSize + delta)}px`;
+  };
+
+  const resizeTableColumns = (columnIndex, startClientX, tableWidth) => {
+    if (!designMode || columnIndex >= tableColumnWidths.length - 1 || !tableWidth) return;
+    const startingWidths = [...tableColumnWidths];
+    const combinedWidth = startingWidths[columnIndex] + startingWidths[columnIndex + 1];
+
+    const handlePointerMove = (event) => {
+      const deltaPercent = ((event.clientX - startClientX) / tableWidth) * 100;
+      const leftWidth = Math.min(
+        combinedWidth - MIN_COLUMN_WIDTH,
+        Math.max(MIN_COLUMN_WIDTH, startingWidths[columnIndex] + deltaPercent)
+      );
+      const nextWidths = [...startingWidths];
+      nextWidths[columnIndex] = leftWidth;
+      nextWidths[columnIndex + 1] = combinedWidth - leftWidth;
+      setTableColumnWidths(nextWidths);
+    };
+    const handlePointerUp = () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp, { once: true });
   };
 
   const saveInvoiceDesign = async () => {
@@ -1059,11 +1204,20 @@ const PrintInvoice = () => {
       };
     });
     const logo = root.querySelector(".invoice-brand-mark");
+    const specialStyles = {};
+    root.querySelectorAll('[data-design-special-id]').forEach((element) => {
+      specialStyles[element.dataset.designSpecialId] = element.style.cssText;
+    });
     const invoiceDesign = {
       ...(settings.invoiceDesign || {}),
       invoices: {
         ...(settings.invoiceDesign?.invoices || {}),
-        [id]: { elements, logoStyle: logo?.style.cssText || "" },
+        [id]: {
+          elements,
+          logoStyle: logo?.style.cssText || "",
+          specialStyles,
+          tableColumnWidths,
+        },
       },
     };
     try {
@@ -1319,8 +1473,11 @@ const PrintInvoice = () => {
                   <div className="invoice-page-body">
                     <div className="invoice-table-area">
                       <ItemsTable
+                        columnWidths={tableColumnWidths}
+                        designMode={designMode}
                         invoice={invoice}
                         isGst={isGst}
+                        onColumnResize={resizeTableColumns}
                         pageItems={pageItems}
                         serialOffset={serialOffset}
                         showPageTotal={isLastPage}
@@ -1385,7 +1542,12 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
           alt="Walia's Creative logo"
         />
         <div className="invoice-title-copy">
-          <h1 data-design-locked="true" title="Company name is locked">
+          <h1
+            data-design-locked="true"
+            data-design-movable="true"
+            data-design-special-id="company-name"
+            title="Company name is locked; position can be changed"
+          >
             {shop.shopName}
           </h1>
           <p>{shop.shopAddress}</p>
@@ -1466,31 +1628,48 @@ const OrderHeader = ({ invoice, shop }) => (
   </>
 );
 
-const ItemsTable = ({ invoice, isGst, pageItems, serialOffset, showPageTotal }) => {
+const ItemsTable = ({
+  columnWidths,
+  designMode,
+  invoice,
+  isGst,
+  onColumnResize,
+  pageItems,
+  serialOffset,
+  showPageTotal,
+}) => {
+  const headings = isGst
+    ? ["S. No.", "Particulars", "HSN/SAC", "GST %", "Size", "Sq.Ft.", "Qty.", "Rate", "Amount"]
+    : ["S. No.", "Particulars", "Sq.Ft.", "Qty.", "Rate", "Amount"];
+
   return (
     <table className="invoice-table">
       <colgroup>
-        <col style={{ width: "6%" }} />
-        <col style={{ width: isGst ? "26%" : "40%" }} />
-        {isGst && <col style={{ width: "10%" }} />}
-        {isGst && <col style={{ width: "8%" }} />}
-        {isGst && <col style={{ width: "12%" }} />}
-        <col style={{ width: isGst ? "10%" : "16%" }} />
-        <col style={{ width: isGst ? "8%" : "12%" }} />
-        <col style={{ width: isGst ? "10%" : "13%" }} />
-        <col style={{ width: isGst ? "10%" : "13%" }} />
+        {columnWidths.map((width, index) => (
+          <col key={index} style={{ width: `${width}%` }} />
+        ))}
       </colgroup>
       <thead>
         <tr>
-          <th>S. No.</th>
-          <th>Particulars</th>
-          {isGst && <th>HSN/SAC</th>}
-          {isGst && <th>GST %</th>}
-          {isGst && <th>Size</th>}
-          <th>Sq.Ft.</th>
-          <th>Qty.</th>
-          <th>Rate</th>
-          <th>Amount</th>
+          {headings.map((heading, index) => (
+            <th key={heading}>
+              {heading}
+              {designMode && index < headings.length - 1 && (
+                <span
+                  className="invoice-column-resizer"
+                  contentEditable="false"
+                  onClick={(event) => event.stopPropagation()}
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onColumnResize(index, event.clientX, event.currentTarget.closest("table")?.offsetWidth);
+                  }}
+                  role="separator"
+                  aria-label={`Resize ${heading} column`}
+                />
+              )}
+            </th>
+          ))}
         </tr>
       </thead>
       <tbody>
@@ -1664,7 +1843,13 @@ const InvoiceFooter = ({
           <div className="invoice-signature-company">
             {shop.accountHolderName || shop.shopName}
           </div>
-          <img src="/signature.png" alt="Authorized signature" />
+          <img
+            src="/signature.png"
+            alt="Authorized signature"
+            data-design-movable="true"
+            data-design-special-id="signature"
+            title="Signature size and position can be changed"
+          />
           <div>Proprietor / Authorised Signatory</div>
         </div>
       </div>
