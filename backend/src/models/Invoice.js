@@ -136,6 +136,18 @@ const invoiceSchema = new mongoose.Schema(
       enum: ["paid", "partially_paid", "unpaid", "pending"],
       default: "unpaid",
     },
+
+    paymentMode: {
+      type: String,
+      enum: ["cash", "upi", "bank_transfer", "cheque"],
+      default: "cash",
+    },
+
+    remarks: {
+      type: String,
+      default: "",
+      trim: true,
+    },
   },
   {
     timestamps: true,

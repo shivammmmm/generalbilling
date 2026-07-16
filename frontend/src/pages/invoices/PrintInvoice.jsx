@@ -882,8 +882,10 @@ const PrintInvoice = () => {
     const frame = requestAnimationFrame(() => {
       const root = printRef.current;
       if (!root) return;
-      const savedDesign = settings.invoiceDesign?.invoices?.[id] || {};
       const orderDocument = invoice?.documentType === "order" || invoice?.gstEnabled === false;
+      const templateKey = orderDocument ? "order" : "gst_invoice";
+      // Load template design for this document type (applies to ALL invoices of same type)
+      const savedDesign = settings.invoiceDesign?.templates?.[templateKey] || {};
       const expectedColumnCount = orderDocument
         ? ORDER_COLUMN_WIDTHS.length
         : GST_COLUMN_WIDTHS.length;
@@ -1208,11 +1210,13 @@ const PrintInvoice = () => {
     root.querySelectorAll('[data-design-special-id]').forEach((element) => {
       specialStyles[element.dataset.designSpecialId] = element.style.cssText;
     });
+    // Save as template for this document type — applies to ALL invoices of same type
+    const templateKey = isGst ? "gst_invoice" : "order";
     const invoiceDesign = {
       ...(settings.invoiceDesign || {}),
-      invoices: {
-        ...(settings.invoiceDesign?.invoices || {}),
-        [id]: {
+      templates: {
+        ...(settings.invoiceDesign?.templates || {}),
+        [templateKey]: {
           elements,
           logoStyle: logo?.style.cssText || "",
           specialStyles,
@@ -1224,7 +1228,7 @@ const PrintInvoice = () => {
       await API.put("/settings", { ...settings, shopName: COMPANY_DISPLAY_NAME, invoiceDesign });
       setSettings((current) => ({ ...current, invoiceDesign }));
       setDesignEditing(false);
-      alert("Invoice design saved.");
+      alert(`${isGst ? "GST Invoice" : "Non-GST Order"} template saved! Yeh design ab saare ${isGst ? "GST Invoices" : "Orders"} mein apply hoga.`);
     } catch (error) {
       alert(error.response?.data?.message || "Design save nahi ho paya.");
     }
@@ -1359,11 +1363,14 @@ const PrintInvoice = () => {
 
       {designMode && (
         <div className="print:hidden sticky top-2 z-50 mx-auto flex max-w-5xl flex-wrap items-end gap-2 rounded-2xl border border-violet-200 bg-white p-3 shadow-xl">
-          <div className="mr-2 min-w-48">
+          <div className="mr-2 min-w-52">
             <div className="text-[10px] font-black uppercase tracking-widest text-violet-600">
-              Word-style editor
+              Template Editor — {isGst ? "GST Invoice" : "Non-GST Order"}
             </div>
-            <div className="max-w-56 truncate text-xs font-bold text-slate-700">
+            <div className="text-[10px] font-semibold text-amber-600">
+              ⚡ Save karoge toh saare {isGst ? "GST Invoices" : "Orders"} update honge
+            </div>
+            <div className="mt-1 max-w-56 truncate text-xs font-bold text-slate-700">
               {selectedDesignLabel}
             </div>
           </div>
@@ -1433,13 +1440,18 @@ const PrintInvoice = () => {
             })}
           </div>
 
-          <button
-            type="button"
-            onClick={saveInvoiceDesign}
-            className="ml-auto rounded-xl bg-violet-600 px-5 py-3 text-sm font-black text-white hover:bg-violet-700"
-          >
-            Save Design
-          </button>
+          <div className="ml-auto flex flex-col items-end gap-1">
+            <button
+              type="button"
+              onClick={saveInvoiceDesign}
+              className="rounded-xl bg-violet-600 px-5 py-3 text-sm font-black text-white hover:bg-violet-700"
+            >
+              Save as Default Template
+            </button>
+            <span className="text-[10px] font-bold text-violet-500">
+              Applies to all {isGst ? "GST Invoices" : "Non-GST Orders"}
+            </span>
+          </div>
         </div>
       )}
 

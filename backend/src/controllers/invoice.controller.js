@@ -104,6 +104,7 @@ export const createInvoice = async (req, res) => {
       documentType = "gst_invoice",
       receivedAmount = 0,
       paymentMode = "cash",
+      remarks = "",
       products = [],
       invoiceDate,
     } = req.body;
@@ -263,6 +264,10 @@ export const createInvoice = async (req, res) => {
 
       paymentStatus,
 
+      paymentMode,
+
+      remarks: remarks || "",
+
       createdAt: dateWithPreservedTime(invoiceDate),
     });
 
@@ -414,6 +419,7 @@ export const updateInvoice = async (req, res) => {
       invoiceDate,
       receivedAmount,
       paymentMode = "cash",
+      remarks,
     } = req.body;
 
     if (!products.length) {
@@ -534,6 +540,8 @@ export const updateInvoice = async (req, res) => {
     invoice.receivedAmount = received;
     invoice.balanceDue = balanceDue;
     invoice.paymentStatus = paymentStatus;
+    invoice.paymentMode = paymentMode;
+    if (remarks !== undefined) invoice.remarks = remarks;
     if (invoiceDate) {
       invoice.createdAt = dateWithPreservedTime(invoiceDate, invoice.createdAt);
     }
