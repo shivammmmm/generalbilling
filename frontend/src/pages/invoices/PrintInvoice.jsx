@@ -28,9 +28,10 @@ const ORDER_PAYMENT_QR = "/payment-qr-crop.jpeg";
 const ORDER_LOGO_NAME = "Walia's Creative";
 const ORDER_SERVICES = ["Solvent", "Eco-Solvent", "Glow Sign Board", "Signage Solutions"];
 const GST_COLUMN_WIDTHS = [6, 26, 10, 8, 12, 10, 8, 10, 10];
-const ORDER_COLUMN_WIDTHS = [6, 40, 16, 12, 13, 13];
+const ORDER_COLUMN_WIDTHS = [6, 32, 14, 12, 12, 12, 12];
 const MIN_COLUMN_WIDTH = 4;
 const DESIGN_EDITABLE_SELECTOR = [
+  // GST Invoice elements
   ".invoice-document-heading",
   ".invoice-title p",
   ".invoice-business-line",
@@ -50,6 +51,14 @@ const DESIGN_EDITABLE_SELECTOR = [
   ".invoice-signature-for",
   ".invoice-signature-company",
   ".invoice-signature > div:last-child",
+  // Non-GST Order elements
+  ".order-logo",
+  ".order-checklist li",
+  ".order-address-line",
+  ".order-remarks",
+  ".order-signature",
+  ".order-bottom-row > div:first-child",
+  ".order-payment-upi",
 ].join(",");
 
 const A4_PRINT_STYLE = `
@@ -1603,7 +1612,7 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
           </div>
           <div className="invoice-meta-row">
             <strong>Document Type</strong>
-            <strong>GST Invoice</strong>
+            <strong data-design-movable="true" data-design-special-id="doc-type">GST Invoice</strong>
           </div>
         </div>
       </div>
@@ -1614,7 +1623,7 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
 const OrderHeader = ({ invoice, shop }) => (
   <>
     <div className="order-letterhead-top">
-      <h1 className="order-logo">{ORDER_LOGO_NAME}</h1>
+      <h1 className="order-logo" data-design-movable="true" data-design-special-id="company-name">{ORDER_LOGO_NAME}</h1>
       <ul className="order-checklist">
         {ORDER_SERVICES.map((service) => (
           <li key={service}>{service}</li>
@@ -1622,14 +1631,14 @@ const OrderHeader = ({ invoice, shop }) => (
       </ul>
     </div>
 
-    <div className="order-address-line">
+    <div className="order-address-line" data-design-movable="true" data-design-special-id="company-address">
       {shop.shopAddress}
       {shop.shopMobile ? ` | Handfone : ${shop.shopMobile}` : ""}
       {shop.shopEmail ? ` | e-mail : ${shop.shopEmail}` : ""}
     </div>
 
     <div className="order-party-row">
-      <div>
+      <div data-design-movable="true" data-design-special-id="party-details">
         M/s <strong>{invoice?.farmer?.name || "-"}</strong>
       </div>
       <div className="order-party-right">
@@ -1652,7 +1661,7 @@ const ItemsTable = ({
 }) => {
   const headings = isGst
     ? ["S. No.", "Particulars", "HSN/SAC", "GST %", "Size", "Sq.Ft.", "Qty.", "Rate", "Amount"]
-    : ["S. No.", "Particulars", "Sq.Ft.", "Qty.", "Rate", "Amount"];
+    : ["S. No.", "Particulars", "Size", "Sq.Ft.", "Qty.", "Rate", "Amount"];
 
   return (
     <table className="invoice-table">
@@ -1697,6 +1706,13 @@ const ItemsTable = ({
               <td className="product-cell">
                 {item.product?.productName || item.product || "-"}
               </td>
+              {!isGst && (
+                <td className="center-cell">
+                  {toNumber(item.width) > 0 && toNumber(item.length) > 0
+                    ? `${formatCompactNumber(item.width)} \u00d7 ${formatCompactNumber(item.length)}`
+                    : "-"}
+                </td>
+              )}
               {isGst && (
                 <td className="center-cell">
                   {item.hsnCode || item.product?.hsnCode || "-"}
@@ -1719,7 +1735,6 @@ const ItemsTable = ({
             </tr>
           );
         })}
-
         <FillerRow isGst={isGst} />
       </tbody>
       {showPageTotal && isGst && (
@@ -1727,9 +1742,9 @@ const ItemsTable = ({
           <tr>
             <td />
             <td>Total Taxable Amount</td>
-            {isGst && <td />}
-            {isGst && <td />}
-            {isGst && <td />}
+            <td />
+            <td />
+            <td />
             <td />
             <td />
             <td />
@@ -1745,6 +1760,7 @@ const FillerRow = ({ isGst }) => (
   <tr className="invoice-filler-row">
     <td />
     <td />
+    {!isGst && <td />}
     {isGst && <td />}
     {isGst && <td />}
     {isGst && <td />}
@@ -1754,6 +1770,7 @@ const FillerRow = ({ isGst }) => (
     <td />
   </tr>
 );
+
 
 const InvoiceFooter = ({
   amountInWords,
@@ -1878,7 +1895,7 @@ const OrderFooter = ({ grandTotalRounded, shop }) => (
         <img src={ORDER_PAYMENT_QR} alt="Scan QR to pay" />
         <div>
           <strong>Scan to Pay</strong>
-          <span>UPI: {shop.paymentUpiId}</span>
+          <span className="order-payment-upi">UPI: {shop.paymentUpiId}</span>
         </div>
       </div>
 
