@@ -49,6 +49,12 @@ const invoiceSchema = new mongoose.Schema(
           default: "",
         },
 
+        remarks: {
+          type: String,
+          default: "",
+          trim: true,
+        },
+
         quantity: {
           type: Number,
           required: true,

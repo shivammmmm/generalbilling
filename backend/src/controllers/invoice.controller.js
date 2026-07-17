@@ -195,6 +195,8 @@ export const createInvoice = async (req, res) => {
         // snapshot HSN code at time of invoice creation
         hsnCode: product.hsnCode || "",
 
+        remarks: String(item.remarks || "").trim(),
+
         quantity,
 
         length,
@@ -497,6 +499,7 @@ export const updateInvoice = async (req, res) => {
       invoiceProducts.push({
         product: product._id,
         hsnCode: product.hsnCode || "",
+        remarks: String(item.remarks || "").trim(),
         quantity,
         length,
         width,

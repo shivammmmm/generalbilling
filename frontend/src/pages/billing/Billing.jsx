@@ -35,6 +35,7 @@ const emptyItem = {
   quantity: 1,
   selectedRate: "",
   gstRate: "",
+  remarks: "",
 };
 
 const today = new Date().toISOString().slice(0, 10);
@@ -299,6 +300,7 @@ const Billing = () => {
           quantity: Number(item.quantity),
           selectedRate: Number(item.selectedRate),
           gstRate: gstEnabled ? Number(item.gstRate) : 0,
+          remarks: item.remarks || "",
         })),
       });
 
@@ -734,6 +736,19 @@ const Billing = () => {
                           <Trash2 size={18} />
                         </button>
                       </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <label className="mb-2 block text-[11px] font-black uppercase tracking-widest text-slate-600">
+                        Item Remark
+                      </label>
+                      <input
+                        type="text"
+                        value={item.remarks || ""}
+                        onChange={(event) => handleProductChange(index, "remarks", event.target.value)}
+                        placeholder="Optional item remark"
+                        className="input-field bg-white"
+                      />
                     </div>
 
                     <div className={`mt-4 grid grid-cols-2 gap-3 rounded-2xl bg-white p-3 ${isGst ? "sm:grid-cols-5" : "sm:grid-cols-4"}`}>

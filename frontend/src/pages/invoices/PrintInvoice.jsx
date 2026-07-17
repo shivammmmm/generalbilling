@@ -5,7 +5,8 @@ import API from "../../services/api";
 import { toNumber } from "../../utils/billing";
 import { numberToWords } from "../../utils/numberToWords";
 
-const PAGE_ITEM_LIMIT = 14;
+const FIRST_PAGE_ITEM_LIMIT = 25;
+const CONTINUATION_PAGE_ITEM_LIMIT = 27;
 const COMPANY_DISPLAY_NAME = "Walia's Creative";
 
 const FALLBACK_SHOP = {
@@ -27,9 +28,10 @@ const FALLBACK_SHOP = {
 const ORDER_PAYMENT_QR = "/payment-qr-crop.jpeg";
 const ORDER_LOGO_NAME = "Walia's Creative";
 const ORDER_SERVICES = ["Solvent", "Eco-Solvent", "Glow Sign Board", "Signage Solutions"];
-const GST_COLUMN_WIDTHS = [6, 26, 10, 8, 12, 10, 8, 10, 10];
-const ORDER_COLUMN_WIDTHS = [6, 32, 14, 12, 12, 12, 12];
+const GST_COLUMN_WIDTHS = [6, 38, 10, 8, 10, 8, 10, 10];
+const ORDER_COLUMN_WIDTHS = [7, 43, 12, 10, 13, 15];
 const MIN_COLUMN_WIDTH = 4;
+const DESIGN_LAYOUT_VERSION = 2;
 const DESIGN_EDITABLE_SELECTOR = [
   // GST Invoice elements
   ".invoice-document-heading",
@@ -49,7 +51,6 @@ const DESIGN_EDITABLE_SELECTOR = [
   ".invoice-amount-words span",
   ".invoice-amount-words strong",
   ".invoice-signature-for",
-  ".invoice-signature-company",
   ".invoice-signature > div:last-child",
   // Non-GST Order elements
   ".order-logo",
@@ -538,8 +539,8 @@ const A4_PRINT_STYLE = `
   grid-template-columns: 1fr 230px;
   align-items: end;
   gap: 14px;
-  padding: 10px 14px 8px;
-  min-height: 35mm;
+  padding: 6px 14px 5px;
+  min-height: 27mm;
 }
 
 .invoice-amount-words {
@@ -572,7 +573,7 @@ const A4_PRINT_STYLE = `
 
 .invoice-signature img {
   display: block;
-  height: 68px;
+  height: 64px;
   max-width: 210px;
   object-fit: contain;
   margin: 2px auto 3px;
@@ -814,11 +815,24 @@ const A4_PRINT_STYLE = `
 `;
 
 const chunkItems = (items = []) => {
-  const chunks = [];
-  for (let index = 0; index < items.length; index += PAGE_ITEM_LIMIT) {
-    chunks.push(items.slice(index, index + PAGE_ITEM_LIMIT));
+  if (!items.length) return [{ items: [], serialOffset: 0 }];
+
+  const pages = [{
+    items: items.slice(0, FIRST_PAGE_ITEM_LIMIT),
+    serialOffset: 0,
+  }];
+  const remaining = items.slice(FIRST_PAGE_ITEM_LIMIT);
+  if (!remaining.length) return pages;
+
+  const continuationCount = Math.ceil(remaining.length / CONTINUATION_PAGE_ITEM_LIMIT);
+  const balancedSize = Math.ceil(remaining.length / continuationCount);
+  for (let index = 0; index < remaining.length; index += balancedSize) {
+    pages.push({
+      items: remaining.slice(index, index + balancedSize),
+      serialOffset: FIRST_PAGE_ITEM_LIMIT + index,
+    });
   }
-  return chunks.length ? chunks : [[]];
+  return pages;
 };
 
 const normalizeWhatsAppPhone = (value = "") => {
@@ -894,21 +908,27 @@ const PrintInvoice = () => {
       const orderDocument = invoice?.documentType === "order" || invoice?.gstEnabled === false;
       const templateKey = orderDocument ? "order" : "gst_invoice";
       // Load template design for this document type (applies to ALL invoices of same type)
-      const savedDesign = settings.invoiceDesign?.templates?.[templateKey] || {};
       const expectedColumnCount = orderDocument
         ? ORDER_COLUMN_WIDTHS.length
         : GST_COLUMN_WIDTHS.length;
+      const storedDesign = settings.invoiceDesign?.templates?.[templateKey] || {};
+      const savedDesign = storedDesign.layoutVersion !== DESIGN_LAYOUT_VERSION ||
+        (Array.isArray(storedDesign.tableColumnWidths) &&
+        storedDesign.tableColumnWidths.length !== expectedColumnCount)
+          ? {}
+          : storedDesign;
       const savedColumnWidths = savedDesign.tableColumnWidths;
       setTableColumnWidths(
         Array.isArray(savedColumnWidths) && savedColumnWidths.length === expectedColumnCount
           ? savedColumnWidths
           : orderDocument ? ORDER_COLUMN_WIDTHS : GST_COLUMN_WIDTHS
       );
-      const elements = [...root.querySelectorAll(DESIGN_EDITABLE_SELECTOR)];
+      const elements = [...root.querySelectorAll(DESIGN_EDITABLE_SELECTOR)].filter(
+        (element) => !element.matches(".invoice-table th, .invoice-table td")
+      );
       elements.forEach((element, index) => {
         element.dataset.designId = `text-${index}`;
         const saved = savedDesign.elements?.[`text-${index}`];
-        if (saved?.text !== undefined) element.textContent = saved.text;
         if (saved?.style) element.style.cssText = saved.style;
       });
       const logo = root.querySelector(".invoice-brand-mark");
@@ -1083,7 +1103,17 @@ const PrintInvoice = () => {
   const setDesignEditing = (enabled) => {
     const root = printRef.current;
     if (!root) return;
-    const elements = [...root.querySelectorAll(DESIGN_EDITABLE_SELECTOR)];
+    const allElements = [...root.querySelectorAll(DESIGN_EDITABLE_SELECTOR)];
+    allElements
+      .filter((element) => element.matches(".invoice-table th, .invoice-table td"))
+      .forEach((element) => {
+        element.removeAttribute("data-design-id");
+        element.removeAttribute("data-design-editable");
+        element.contentEditable = "false";
+      });
+    const elements = allElements.filter(
+      (element) => !element.matches(".invoice-table th, .invoice-table td")
+    );
     elements.forEach((element, index) => {
       element.dataset.designId = `text-${index}`;
       element.dataset.designEditable = "true";
@@ -1210,7 +1240,6 @@ const PrintInvoice = () => {
     const elements = {};
     root.querySelectorAll("[data-design-id]").forEach((element) => {
       elements[element.dataset.designId] = {
-        text: element.textContent,
         style: element.style.cssText,
       };
     });
@@ -1226,6 +1255,7 @@ const PrintInvoice = () => {
       templates: {
         ...(settings.invoiceDesign?.templates || {}),
         [templateKey]: {
+          layoutVersion: DESIGN_LAYOUT_VERSION,
           elements,
           logoStyle: logo?.style.cssText || "",
           specialStyles,
@@ -1471,9 +1501,8 @@ const PrintInvoice = () => {
           className="invoice-document"
           onClickCapture={handleDesignSelect}
         >
-          {pages.map((pageItems, pageIndex) => {
+          {pages.map((page, pageIndex) => {
             const isLastPage = pageIndex === pages.length - 1;
-            const serialOffset = pageIndex * PAGE_ITEM_LIMIT;
 
             return (
               <div
@@ -1482,14 +1511,22 @@ const PrintInvoice = () => {
                 style={invoicePageStyle}
               >
                 <div className="invoice-sheet">
-                  <InvoiceHeader
-                    docHeading={docHeading}
-                    invoice={invoice}
-                    isGst={isGst}
-                    pageIndex={pageIndex}
-                    pageCount={pages.length}
-                    shop={shop}
-                  />
+                  {pageIndex === 0 ? (
+                    <InvoiceHeader
+                      docHeading={docHeading}
+                      invoice={invoice}
+                      isGst={isGst}
+                      pageIndex={pageIndex}
+                      pageCount={pages.length}
+                      shop={shop}
+                    />
+                  ) : (
+                    <ContinuationHeader
+                      invoice={invoice}
+                      pageIndex={pageIndex}
+                      pageCount={pages.length}
+                    />
+                  )}
 
                   <div className="invoice-page-body">
                     <div className="invoice-table-area">
@@ -1499,8 +1536,8 @@ const PrintInvoice = () => {
                         invoice={invoice}
                         isGst={isGst}
                         onColumnResize={resizeTableColumns}
-                        pageItems={pageItems}
-                        serialOffset={serialOffset}
+                        pageItems={page.items}
+                        serialOffset={page.serialOffset}
                         showPageTotal={isLastPage}
                       />
 
@@ -1620,6 +1657,14 @@ const InvoiceHeader = ({ docHeading, invoice, isGst, pageIndex, pageCount, shop 
   );
 };
 
+const ContinuationHeader = ({ invoice, pageIndex, pageCount }) => (
+  <div className="invoice-top-line">
+    <span>Invoice No. {invoice?.invoiceNumber}</span>
+    <span>Continued</span>
+    <span style={{ textAlign: "right" }}>Page {pageIndex + 1} of {pageCount}</span>
+  </div>
+);
+
 const OrderHeader = ({ invoice, shop }) => (
   <>
     <div className="order-letterhead-top">
@@ -1660,8 +1705,8 @@ const ItemsTable = ({
   showPageTotal,
 }) => {
   const headings = isGst
-    ? ["S. No.", "Particulars", "HSN/SAC", "GST %", "Size", "Sq.Ft.", "Qty.", "Rate", "Amount"]
-    : ["S. No.", "Particulars", "Size", "Sq.Ft.", "Qty.", "Rate", "Amount"];
+    ? ["S. No.", "Particulars", "HSN/SAC", "GST %", "Sq.Ft.", "Qty.", "Rate", "Amount"]
+    : ["S. No.", "Particulars", "Sq.Ft.", "Qty.", "Rate", "Amount"];
 
   return (
     <table className="invoice-table">
@@ -1705,14 +1750,13 @@ const ItemsTable = ({
               <td className="center-cell">{serialOffset + idx + 1}</td>
               <td className="product-cell">
                 {item.product?.productName || item.product || "-"}
+                {toNumber(item.width) > 0 && toNumber(item.length) > 0
+                  ? ` ${formatCompactNumber(item.width)}×${formatCompactNumber(item.length)}`
+                  : ""}
+                {item.remarks || (idx === 0 && invoice?.remarks)
+                  ? ` (${item.remarks || invoice.remarks})`
+                  : ""}
               </td>
-              {!isGst && (
-                <td className="center-cell">
-                  {toNumber(item.width) > 0 && toNumber(item.length) > 0
-                    ? `${formatCompactNumber(item.width)} \u00d7 ${formatCompactNumber(item.length)}`
-                    : "-"}
-                </td>
-              )}
               {isGst && (
                 <td className="center-cell">
                   {item.hsnCode || item.product?.hsnCode || "-"}
@@ -1721,11 +1765,6 @@ const ItemsTable = ({
               {isGst && (
                 <td className="center-cell gst-rate-cell">
                   {formatCompactNumber(item.gstRate)}
-                </td>
-              )}
-              {isGst && (
-                <td className="center-cell">
-                  {formatCompactNumber(item.width)} x {formatCompactNumber(item.length)}
                 </td>
               )}
               <td className="center-cell">{formatCompactNumber(sqFt)}</td>
@@ -1742,12 +1781,7 @@ const ItemsTable = ({
           <tr>
             <td />
             <td>Total Taxable Amount</td>
-            <td />
-            <td />
-            <td />
-            <td />
-            <td />
-            <td />
+            <td colSpan={5} />
             <td className="amount-cell amount-highlight">{formatNumber(invoice?.subTotal)}</td>
           </tr>
         </tfoot>
@@ -1760,8 +1794,6 @@ const FillerRow = ({ isGst }) => (
   <tr className="invoice-filler-row">
     <td />
     <td />
-    {!isGst && <td />}
-    {isGst && <td />}
     {isGst && <td />}
     {isGst && <td />}
     <td />
@@ -1869,9 +1901,6 @@ const InvoiceFooter = ({
         </div>
         <div className="invoice-signature">
           <div className="invoice-signature-for">FOR</div>
-          <div className="invoice-signature-company">
-            {shop.accountHolderName || shop.shopName}
-          </div>
           <img
             src="/signature.png"
             alt="Authorized signature"

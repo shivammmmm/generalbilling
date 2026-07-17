@@ -61,13 +61,13 @@ const Login = () => {
 
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="space-y-2">
-              <label className="block text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] ml-1">Email</label>
+              <label className="block text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] ml-1">Login ID</label>
               <div className="relative group">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-500 transition-colors" size={18} />
                 <input
-                  type="email"
+                  type="text"
                   name="email"
-                  placeholder="admin@yourcompany.com"
+                  placeholder="admin"
                   value={formData.email}
                   onChange={handleChange}
                   className="input-field pl-12"
