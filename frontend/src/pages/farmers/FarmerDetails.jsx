@@ -61,7 +61,34 @@ const CustomerDetails = () => {
   });
   const [loading, setLoading] = useState(true);
   const [pdfBusy, setPdfBusy] = useState(false);
-  const [filters, setFilters] = useState({ search: "", fromDate: "", toDate: "", type: "all", item: "all", minAmount: "", maxAmount: "" });
+  const [filters, setFilters] = useState({ documentType: "all", search: "", fromDate: "", toDate: "", type: "all", item: "all", minAmount: "", maxAmount: "" });
+
+  const statementLabel = filters.documentType === "gst_invoice"
+    ? "GST Invoice Statement"
+    : filters.documentType === "order"
+      ? "Non-GST Order Statement"
+      : "Customer Statement";
+
+  const categoryHistory = useMemo(
+    () => filters.documentType === "all"
+      ? history
+      : history.filter((entry) => entry.documentType === filters.documentType),
+    [filters.documentType, history]
+  );
+
+  const categorySummary = useMemo(() => {
+    if (filters.documentType === "all") return summary;
+
+    const invoiceEntries = categoryHistory.filter((entry) => entry.type === "credit");
+    const totalPurchase = invoiceEntries.reduce((total, entry) => total + Number(entry.debit || 0), 0);
+    const totalPaid = categoryHistory.reduce((total, entry) => total + Number(entry.credit || 0), 0);
+    return {
+      totalOrders: invoiceEntries.length,
+      totalPurchase,
+      totalPaid,
+      outstandingBalance: Math.max(totalPurchase - totalPaid, 0),
+    };
+  }, [categoryHistory, filters.documentType, summary]);
 
   const itemOptions = useMemo(
     () => [...new Set(history.flatMap((entry) => entry.itemNames || []))].sort(),
@@ -70,7 +97,7 @@ const CustomerDetails = () => {
 
   const filteredHistory = useMemo(() => {
     const query = filters.search.trim().toLowerCase();
-    return history.filter((entry) => {
+    const matchingEntries = categoryHistory.filter((entry) => {
       const entryDate = new Date(entry.date || entry.createdAt);
       const amount = Number(entry.debit || entry.credit || 0);
       const matchesSearch = !query || [entry.voucherNo, entry.invoiceNo, entry.description, ...(entry.itemNames || [])]
@@ -84,10 +111,20 @@ const CustomerDetails = () => {
         && (filters.minAmount === "" || amount >= Number(filters.minAmount))
         && (filters.maxAmount === "" || amount <= Number(filters.maxAmount));
     });
-  }, [filters, history]);
+
+    return matchingEntries.reduce((result, entry) => {
+      const runningBalance = result.runningBalance
+        + Number(entry.debit || 0)
+        - Number(entry.credit || 0);
+      return {
+        runningBalance,
+        entries: [...result.entries, { ...entry, runningBalance: Math.max(runningBalance, 0) }],
+      };
+    }, { runningBalance: 0, entries: [] }).entries;
+  }, [categoryHistory, filters]);
 
   const updateFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value }));
-  const clearFilters = () => setFilters({ search: "", fromDate: "", toDate: "", type: "all", item: "all", minAmount: "", maxAmount: "" });
+  const clearFilters = () => setFilters((current) => ({ documentType: current.documentType, search: "", fromDate: "", toDate: "", type: "all", item: "all", minAmount: "", maxAmount: "" }));
 
   useEffect(() => {
     const styleTag = document.createElement("style");
@@ -118,7 +155,7 @@ const CustomerDetails = () => {
   }, [id]);
 
   const getStatementFilename = () =>
-    `Customer-Statement-${customer?.name || "customer"}.pdf`.replace(/[\\/:*?"<>|]/g, "-");
+    `${statementLabel}-${customer?.name || "customer"}.pdf`.replace(/[\\/:*?"<>|]/g, "-");
 
   const handleDownloadStatement = async () => {
     if (!statementRef.current || pdfBusy) return;
@@ -194,7 +231,7 @@ const CustomerDetails = () => {
       <div ref={statementRef} className="statement-print-area space-y-6 rounded-3xl bg-white/0">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-600">
-          Customer Statement
+          {statementLabel}
         </p>
         <h2 className="mt-2 text-2xl font-black text-slate-950">
           {customer?.name || "-"}
@@ -238,22 +275,22 @@ const CustomerDetails = () => {
         {[
           {
             label: "Total Orders",
-            value: Number(summary.totalOrders || customer?.totalOrders || 0),
+            value: Number(categorySummary.totalOrders || 0),
             icon: <Receipt size={22} />,
           },
           {
             label: "Total Purchase",
-            value: formatCurrency(summary.totalPurchase || customer?.totalPurchase),
+            value: formatCurrency(categorySummary.totalPurchase || 0),
             icon: <IndianRupee size={22} />,
           },
           {
             label: "Total Paid",
-            value: formatCurrency(summary.totalPaid || customer?.totalPaid),
+            value: formatCurrency(categorySummary.totalPaid || 0),
             icon: <ArrowDownLeft size={22} />,
           },
           {
             label: "Outstanding Balance",
-            value: formatCurrency(summary.outstandingBalance ?? customer?.dueAmount),
+            value: formatCurrency(categorySummary.outstandingBalance || 0),
             icon: <IndianRupee size={22} />,
             highlight: true,
           },
@@ -275,9 +312,14 @@ const CustomerDetails = () => {
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-200 p-6">
           <h2 className="text-xl font-black text-slate-950">
-            Customer Statement
+            {statementLabel}
           </h2>
           <div className="statement-print-hidden mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <select value={filters.documentType} onChange={(event) => updateFilter("documentType", event.target.value)} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold outline-none focus:border-blue-500">
+              <option value="all">All GST &amp; Non-GST</option>
+              <option value="gst_invoice">GST Invoice Statement</option>
+              <option value="order">Non-GST Order Statement</option>
+            </select>
             <input type="search" value={filters.search} onChange={(event) => updateFilter("search", event.target.value)} placeholder="Invoice, voucher, item..." className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold outline-none focus:border-blue-500" />
             <input type="date" value={filters.fromDate} onChange={(event) => updateFilter("fromDate", event.target.value)} aria-label="From date" className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold outline-none focus:border-blue-500" />
             <input type="date" value={filters.toDate} onChange={(event) => updateFilter("toDate", event.target.value)} aria-label="To date" className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold outline-none focus:border-blue-500" />
@@ -296,7 +338,7 @@ const CustomerDetails = () => {
             <button type="button" onClick={clearFilters} className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-black text-slate-700 hover:bg-slate-50">Clear Filters</button>
           </div>
           <p className="statement-print-hidden mt-3 text-xs font-bold text-slate-500">
-            Showing {filteredHistory.length} of {history.length} entries
+            Showing {filteredHistory.length} of {categoryHistory.length} {statementLabel.toLowerCase()} entries
           </p>
         </div>
         <div className="overflow-x-auto">

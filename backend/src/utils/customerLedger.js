@@ -62,19 +62,38 @@ export const buildCustomerStatement = async (farmerId) => {
 
   const [farmer, invoices, transactions] = await Promise.all([
     Farmer.findById(farmerId),
-    Invoice.find({ farmer: farmerId }),
+    Invoice.find({ farmer: farmerId }).populate("products.product", "productName"),
     Transaction.find({ farmer: farmerId })
-      .populate({
-        path: "invoice",
-        populate: { path: "products.product", select: "productName" },
-      })
       .sort({ createdAt: 1, _id: 1 }),
   ]);
 
   if (!farmer) return null;
 
+  // Older ledger entries may not have a usable invoice reference. Resolve by
+  // invoice number as a fallback so existing GST and non-GST rows also split.
+  const invoicesById = new Map(
+    invoices.map((invoice) => [String(invoice._id), invoice])
+  );
+  const invoicesByNumber = new Map(
+    invoices.map((invoice) => [String(invoice.invoiceNumber || "").trim(), invoice])
+  );
+
   let runningBalance = 0;
   const statement = transactions.map((entry) => {
+    let linkedInvoice = invoicesById.get(String(entry.invoice || ""))
+      || invoicesById.get(String(entry._id || ""))
+      || invoicesByNumber.get(String(entry.invoiceNumber || "").trim());
+
+    if (!linkedInvoice && entry.type === "credit") {
+      const sameAmountInvoices = invoices.filter(
+        (invoice) => Number(invoice.grandTotal || 0) === Number(entry.amount || 0)
+      );
+      linkedInvoice = sameAmountInvoices.sort((first, second) => {
+        const entryTime = new Date(entry.createdAt).getTime();
+        return Math.abs(new Date(first.createdAt).getTime() - entryTime)
+          - Math.abs(new Date(second.createdAt).getTime() - entryTime);
+      })[0];
+    }
     const isDebit = ["opening", "credit", "interest"].includes(entry.type);
     const debit = isDebit ? Number(entry.amount || 0) : 0;
     const credit = entry.type === "payment" ? Number(entry.amount || 0) : 0;
@@ -88,9 +107,10 @@ export const buildCustomerStatement = async (farmerId) => {
       invoiceNo: entry.invoiceNumber || "-",
       description: entry.description || "",
       paymentMode: entry.paymentMode || "",
+      documentType: linkedInvoice?.documentType || "",
       itemNames: [
         ...new Set(
-          (entry.invoice?.products || [])
+          (linkedInvoice?.products || [])
             .map((item) => item.product?.productName)
             .filter(Boolean)
         ),
